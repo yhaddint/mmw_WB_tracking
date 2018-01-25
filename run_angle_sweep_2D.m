@@ -1,9 +1,6 @@
-function [ tx_angle, rx_angle ] = run_angle_sweep_2D( Nt, Nr, Nfft, chan_WB)
+function [ tx_max_index, tx_angle, rx_max_index, rx_angle ] = run_angle_sweep_2D( Nt, Nr, Nfft, chan_WB, angle_tx_range, angle_rx_range)
 %RUN_ANGLE_SWEEP_2D Summary of this function goes here
 %   Detailed explanation goes here
-
-    angle_tx_range = linspace(-pi/2,pi/2,Nt*2);
-    angle_rx_range = linspace(-pi/2,pi/2,Nr*2);
 
     rx_RSS_bin = zeros(Nfft,1);
     rx_RSS = zeros(length(angle_rx_range),length(angle_tx_range));
