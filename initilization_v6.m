@@ -1,5 +1,8 @@
 % test whether it is possible to get reasonable "initial guess" of channle
 % parameter
+% This script uses channel model of get_H_freq3
+% This version is abandoned
+
 clear;clc;close all
 % rng(2)
 %% other parameter

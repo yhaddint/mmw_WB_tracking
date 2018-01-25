@@ -1,5 +1,9 @@
-% test whether it is possible to get reasonable "initial guess" of channle
+% 1.Test whether it is possible to get reasonable "initial guess" of channle
 % parameter
+% 2.This script uses channel model of get_H_freq2
+% 3.This version assumed transmitter array gain is perfect (not fractional
+% mismatch) and gain is Nt
+% 4. It uses LMS version 2 (as compared to LMS_v1 in initialization_v4 )
 clear;clc;close all
 % rng(2)
 %% other parameter
