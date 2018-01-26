@@ -5,8 +5,8 @@ rng(1)
 %% other parameter
 plot_ellipse = 0;
 %% Goemetry Parameters
-Nt = 64;
-Nr = 32;
+Nt = 16;
+Nr = 16;
 D_bs2ue = 40;
 loc0_ue = [-D_bs2ue/2,0];
 loc0_bs = [D_bs2ue/2,0];
@@ -86,27 +86,32 @@ H_freq0 = get_H_freq2( raygain,...
                        cluster_num,...
                        ray_num,...
                        Nt, Nr);
-norm_factor = sqrt(mean(mean(mean(abs(H_freq0).^2))));
+% norm_factor = sqrt(mean(mean(mean(abs(H_freq0).^2))));
+norm_factor = 1;
 H_freq0 = H_freq0 / norm_factor ;
 
 %%
 phi1 = mean(rayAOA(1,:),2);
 phi_round1 = round(mean(rayAOA(1,:),2)/pi*2^6)/2^6*pi;
-arx1 = exp(1j*(0:Nr-1)'*pi*sin(phi_round1));
+arx1 = exp(1j*(0:Nr-1)'*pi*sin(phi_round1))/sqrt(Nr);
+
+phi_round1_leftasst = (round(mean(rayAOA(1,:),2)/pi*2^6)-0.25)/2^6*pi;
+arx1_leftasst = exp(1j*(0:Nr-1)'*pi*sin(phi_round1_leftasst))/sqrt(Nr);
+phi_round1_rightasst = (round(mean(rayAOA(1,:),2)/pi*2^6)+0.25)/2^6*pi;
+arx1_rightasst = exp(1j*(0:Nr-1)'*pi*sin(phi_round1_rightasst))/sqrt(Nr);
 
 theta1 = mean(rayAOD(1,:),2);
-atx1 = exp(1j*(0:Nt-1)'*pi*sin(theta1));
+atx1 = exp(1j*(0:Nt-1)'*pi*sin(theta1))/sqrt(Nt);
 
 phi2 = mean(rayAOA(2,:),2);
 phi_round2 = round(mean(rayAOA(2,:),2)/pi*2^6)/2^6*pi;
-arx2 = exp(1j*(0:Nr-1)'*pi*sin(phi_round2));
+arx2 = exp(1j*(0:Nr-1)'*pi*sin(phi_round2))/sqrt(Nr);
 theta2 = mean(rayAOD(2,:),2)
-atx2 = exp(1j*(0:Nt-1)'*pi*sin(theta2));
+atx2 = exp(1j*(0:Nt-1)'*pi*sin(theta2))/sqrt(Nt);
 %% quick look at post-beamforming wideband channel 
 for kk=1:Nfft
     H_BB1(kk,1) = arx1'*squeeze(H_freq0(:,:,kk))*atx1;
     H_BB2(kk,1) = arx2'*squeeze(H_freq0(:,:,kk))*atx2;
-
 end
 % figure
 % plot(10*log10(abs(H_BB1(:,1))))
@@ -138,7 +143,7 @@ for rr=1:ray_num
 end
 % [sort(tau_range(kr)).' sort(raydelay(1,:)).']*1e9
 %% Parameter refinement using Alternative Search in BB1
-t_num = 10;
+t_num = 50;
 for tt = 1:t_num
     if tt==1
         rayAOA_prev = ones(1,ray_num)*phi1;
@@ -159,13 +164,14 @@ for tt = 1:t_num
             bigTheta = -sin(rayAOD(1,:))+sin(theta1);
             BigAlpha(kk,:) = exp(-1j*2*pi*kk*(raydelay_prev(1,:))/(1e-9*Nfft))...
                 .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
-            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta));
+                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
+                ./(Nt*Nr);
         end
         alpha_est = (pinv(BigAlpha)*H_BB1(:,1)).';
-        H_BB1_pred(:,tt) = BigAlpha*(alpha_est.');
+%         H_BB1_pred(:,tt) = BigAlpha*(alpha_est.');
 %         figure
 %         plot(abs(H_BB1_pred(:,tt)));hold on
-%         plot(abs(H_BB1(:,tt)));hold on
+%         plot(abs(H_BB1(:,1)));hold on
 %         legend('pred','true')
         
         
@@ -179,20 +185,22 @@ for tt = 1:t_num
             .*exp(-1j*2*pi*kk*(raydelay_prev(1,:))/(1e-9*Nfft))...
             .*alpha_est...    
             .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
-            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta));
+            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
+            ./(Nt*Nr);
             
             BigTau_const(kk,:) = exp(-1j*2*pi*kk*(raydelay_prev(1,:))...
             /(1e-9*Nfft))...
             .*alpha_est...    
             .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
-            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta));
+            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
+            ./(Nt*Nr);
         end
 %         H_BB1_pred(:,tt) = sum(BigTau_const,2)+BigTau*((raydelay(1,:)-raydelay_prev(1,:)).');
         deltatau_est = pinv([real(BigTau);imag(BigTau)])...
             *[real(H_BB1(:,1)-sum(BigTau_const,2));imag(H_BB1(:,1)-sum(BigTau_const,2))];
         tau_est = raydelay_prev(1,:) + deltatau_est.';
-        H_BB1_pred_real(:,tt) = real(BigTau) * deltatau_est + real(sum(BigTau_const,2));
-        H_BB1_pred_imag(:,tt) = imag(BigTau) * deltatau_est + imag(sum(BigTau_const,2));
+%         H_BB1_pred_real(:,tt) = real(BigTau) * deltatau_est + real(sum(BigTau_const,2));
+%         H_BB1_pred_imag(:,tt) = imag(BigTau) * deltatau_est + imag(sum(BigTau_const,2));
 %         figure
 %         plot(abs(H_BB1_pred_real(:,tt)+1j*H_BB1_pred_imag(:,tt)));hold on
 %         plot(abs(H_BB1(:,1)));hold on
@@ -208,7 +216,8 @@ for tt = 1:t_num
             BigPhi_const(kk,:) = alpha_est(1,:)...
                 .*exp(-1j*2*pi*kk*(tau_est)/(1e-9*Nfft))...
                 .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
-                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta));
+                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
+                ./(Nt*Nr);
             for ray_index=1:ray_num
                 phi_bar = phi_round1;
                 phi_chan = rayAOA_prev(1,ray_index);
@@ -217,7 +226,8 @@ for tt = 1:t_num
                 .*((-1j*pi*Nr*cos(rayAOA_prev(1,ray_index)))*exp(1j*pi*Nr*bigPhi(ray_index))*(1-exp(1j*pi*bigPhi(ray_index)))...
                 -(1-exp(1j*pi*Nr*bigPhi(ray_index)))*exp(1j*pi*bigPhi(ray_index))*(-1j*pi*cos(rayAOA_prev(1,ray_index))))...
                 ./((1-exp(1j*pi*bigPhi(ray_index)))^2)...
-                .*(1-exp(1j*pi*Nt*bigTheta(ray_index)))./(1-exp(1j*pi*bigTheta(ray_index)));
+                .*(1-exp(1j*pi*Nt*bigTheta(ray_index)))./(1-exp(1j*pi*bigTheta(ray_index)))...
+                ./(Nt*Nr);
             end
         end
 %         H_BB1_pred(:,tt) = sum(BigPhi_const,2)+BigPHI*((rayAOA(1,:)-rayAOA_prev(1,:)).');
@@ -225,8 +235,8 @@ for tt = 1:t_num
             *[real(H_BB1(:,1)-sum(BigPhi_const,2));imag(H_BB1(:,1)-sum(BigPhi_const,2))];
         AOA_est = rayAOA_prev(1,:) + deltaAOA_est.';
         
-        H_BB1_pred_real(:,tt) = real(BigPHI) * deltaAOA_est + real(sum(BigPhi_const,2));
-        H_BB1_pred_imag(:,tt) = imag(BigPHI) * deltaAOA_est + imag(sum(BigPhi_const,2));
+%         H_BB1_pred_real(:,tt) = real(BigPHI) * deltaAOA_est + real(sum(BigPhi_const,2));
+%         H_BB1_pred_imag(:,tt) = imag(BigPHI) * deltaAOA_est + imag(sum(BigPhi_const,2));
 %         figure
 %         plot(abs(H_BB1_pred_real(:,tt)+1j*H_BB1_pred_imag(:,tt)));hold on
 %         plot(abs(H_BB1(:,1)));hold on
@@ -240,7 +250,8 @@ for tt = 1:t_num
         H_BB1_pred(kk,tt) = sum(alpha_est(1,:)...
                 .*exp(-1j*2*pi*kk*tau_est/(1e-9*Nfft))...
                 .*(1-exp(1j*pi*Nr*bigPhi_est))./(1-exp(1j*pi*bigPhi_est))...
-                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta)));
+                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta)))...
+                ./(Nt*Nr);
         end
 
     MSE_init(tt) = norm(H_BB1(:,1)-H_BB1_pred(:,tt),'fro')/norm(H_BB1(:,1),'fro');
@@ -277,7 +288,8 @@ for tt = 1:t_num
             bigTheta = -sin(rayAOD(1,:))+sin(theta1);
             BigAlpha(kk,:) = exp(-1j*2*pi*kk*(raydelay_prev(1,:))/(1e-9*Nfft))...
                 .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
-            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta));
+            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
+            ./(Nt*Nr);
         end
         alpha_est = (pinv(BigAlpha)*H_BB2(:,1)).';
         H_BB2_pred(:,tt) = BigAlpha*(alpha_est.');
@@ -297,13 +309,15 @@ for tt = 1:t_num
             .*exp(-1j*2*pi*kk*(raydelay_prev(1,:))/(1e-9*Nfft))...
             .*alpha_est...    
             .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
-            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta));
+            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
+            ./(Nt*Nr);
             
             BigTau_const(kk,:) = exp(-1j*2*pi*kk*(raydelay_prev(1,:))...
             /(1e-9*Nfft))...
             .*alpha_est...    
             .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
-            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta));
+            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
+            ./(Nt*Nr);
         end
 %         H_BB1_pred(:,tt) = sum(BigTau_const,2)+BigTau*((raydelay(1,:)-raydelay_prev(1,:)).');
         deltatau_est = pinv([real(BigTau);imag(BigTau)])...
@@ -326,7 +340,8 @@ for tt = 1:t_num
             BigPhi_const(kk,:) = alpha_est(1,:)...
                 .*exp(-1j*2*pi*kk*(tau_est)/(1e-9*Nfft))...
                 .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
-                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta));
+                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
+                ./(Nt*Nr);
             for ray_index=1:ray_num
                 phi_bar = phi_round1;
                 phi_chan = rayAOA_prev(1,ray_index);
@@ -335,7 +350,8 @@ for tt = 1:t_num
                 .*((-1j*pi*Nr*cos(rayAOA_prev(1,ray_index)))*exp(1j*pi*Nr*bigPhi(ray_index))*(1-exp(1j*pi*bigPhi(ray_index)))...
                 -(1-exp(1j*pi*Nr*bigPhi(ray_index)))*exp(1j*pi*bigPhi(ray_index))*(-1j*pi*cos(rayAOA_prev(1,ray_index))))...
                 ./((1-exp(1j*pi*bigPhi(ray_index)))^2)...
-                .*(1-exp(1j*pi*Nt*bigTheta(ray_index)))./(1-exp(1j*pi*bigTheta(ray_index)));
+                .*(1-exp(1j*pi*Nt*bigTheta(ray_index)))./(1-exp(1j*pi*bigTheta(ray_index)))...
+                ./(Nt*Nr);
             end
         end
 %         H_BB1_pred(:,tt) = sum(BigPhi_const,2)+BigPHI*((rayAOA(1,:)-rayAOA_prev(1,:)).');
@@ -358,7 +374,8 @@ for tt = 1:t_num
         H_BB2_pred(kk,tt) = sum(alpha_est(1,:)...
                 .*exp(-1j*2*pi*kk*tau_est/(1e-9*Nfft))...
                 .*(1-exp(1j*pi*Nr*bigPhi_est))./(1-exp(1j*pi*bigPhi_est))...
-                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta)));
+                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta)))...
+                ./(Nt*Nr);
         end
 %         figure
 %         plot(abs(H_BB2_pred(:,tt)));hold on
@@ -398,6 +415,9 @@ for tt = 1:length(t_range)
     for kk=1:Nfft
         H_BB1(kk,tt) = arx1'*squeeze(H_freq(:,:,kk))*atx1;
         H_BB2(kk,tt) = arx2'*squeeze(H_freq(:,:,kk))*atx2;
+        
+        H_BB1_bf2(kk,tt) = arx1_leftasst'*squeeze(H_freq(:,:,kk))*atx1;
+        H_BB1_bf3(kk,tt) = arx1_rightasst'*squeeze(H_freq(:,:,kk))*atx1;
     end
     raygain_true_BB1(tt,:)  = raygain(1,:);
     raygain_true_BB2(tt,:)  = raygain(2,:);
@@ -407,12 +427,8 @@ for tt = 1:length(t_range)
     
     rayAOA_true_BB1(tt,:)  = rayAOA(1,:);
     rayAOA_true_BB2(tt,:)  = rayAOA(2,:);
-    
 end
 %% Parameter tracking using Alternative Search BB1
-% rho = 0.995;
-% speed_v = [2,0];
-% t_range = (0:5:100)*1e-3;
 
 raydelay_est = zeros(length(t_range),ray_num);
 rayAOA_est = zeros(length(t_range),ray_num);
@@ -429,37 +445,29 @@ for tt = 1:length(t_range)
         raygain_est(tt,:) = alpha_est;
     end
     
-%     % update true channel
-%     loc_ue = loc0_ue+speed_v*t_range(tt);
-%     clc
-%     fprintf('Time Evolution %2.4f s\n',t_range(tt));
-%     [raydelay, rayAOA, rayAOD ] = get_multipath(loc0_bs, loc_ue, loc_cluster_total,...
-%                                             cluster_num, ray_num );
-%     raygain = raygain.*exp(1j*rand(cluster_num,ray_num)*2*pi*sqrt(1-rho^2));
-% 
-%     raydelay_true(tt,:) = raydelay(1,:);
-%     rayAOA_true(tt,:) = rayAOA(1,:);
-%     raygain_true(tt,:) = raygain(1,:);
-% 
-%     H_freq = get_H_freq2(raygain, raydelay, rayAOA, rayAOD, cluster_num, ray_num, Nt, Nr, fc);
-% 
-%     for kk=1:Nfft
-%         H_BB1(kk,tt) = arx1'*squeeze(H_freq(:,:,kk))*atx1;
-%     end
-
     % Alternative estimation parameters
     
         %---------------------------------------------
         % Alpha estimation using previous tau and phi
         %---------------------------------------------
-        for kk=1:Nfft
-            bigPhi = sin(rayAOA_est(tt,:))-sin(phi_round1);
-            bigTheta = -sin(rayAOD(1,:))+sin(theta1);
-            BigAlpha(kk,:) = exp(-1j*2*pi*kk*(raydelay_est(tt,:))/(1e-9*Nfft))...
-                .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
-            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta));
-        end
-        alpha_est = (pinv(BigAlpha)*H_BB1(:,tt)).';
+%         for kk=1:Nfft
+%             bigPhi = sin(rayAOA_est(tt,:))-sin(phi_round1);
+%             bigTheta = -sin(rayAOD(1,:))+sin(theta1);
+%             BigAlpha_cons(kk,:) = raygain_est(tt,:)...
+%                 .*exp(-1j*2*pi*kk*(raydelay_est(tt,:))/(1e-9*Nfft))...
+%                 .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
+%                 .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
+%                 ./(Nt*Nr);
+%         
+%             BigAlpha(kk,:) = exp(-1j*2*pi*kk*(raydelay_est(tt,:))/(1e-9*Nfft))...
+%                 .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
+%                 .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
+%                 ./(Nt*Nr);
+%         end
+%         deltaalpha_est = (pinv(BigAlpha)*(H_BB1(:,tt)-sum(BigAlpha_cons,2))).';
+%         alpha_est = raygain_est(tt,:) + deltaalpha_est;
+        
+        alpha_est = raygain_est(tt,:);
 %         H_BB1_pred(:,tt) = BigAlpha*(alpha_est.');
 %         figure
 %         plot(abs(H_BB1_pred(:,tt)));hold on
@@ -477,54 +485,139 @@ for tt = 1:length(t_range)
             .*exp(-1j*2*pi*kk*(raydelay_est(tt,:))/(1e-9*Nfft))...
             .*alpha_est...    
             .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
-            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta));
+            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
+            ./(Nt*Nr);
             
-            BigTau_const(kk,:) = exp(-1j*2*pi*kk*(raydelay_est(tt,:))...
-            /(1e-9*Nfft))...
+            BigTau_const(kk,:) = exp(-1j*2*pi*kk*(raydelay_est(tt,:))/(1e-9*Nfft))...
             .*alpha_est...    
             .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
-            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta));
+            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
+            ./(Nt*Nr);
         end
 %         H_BB1_pred(:,tt) = sum(BigTau_const,2)+BigTau*((raydelay(1,:)-raydelay_prev(1,:)).');
         deltatau_est = pinv([real(BigTau);imag(BigTau)])...
             *[real(H_BB1(:,tt)-sum(BigTau_const,2));imag(H_BB1(:,tt)-sum(BigTau_const,2))];
         tau_est = raydelay_est(tt,:) + deltatau_est.';
-%         H_BB1_pred_real(:,tt) = real(BigTau) * deltatau_est + real(sum(BigTau_const,2));
-%         H_BB1_pred_imag(:,tt) = imag(BigTau) * deltatau_est + imag(sum(BigTau_const,2));
-%         figure
-%         plot(abs(H_BB1_pred_real(:,tt)+1j*H_BB1_pred_imag(:,tt)));hold on
-%         plot(abs(H_BB1(:,1)));hold on
-%         legend('pred','true')
-
+        
+        H_BB1_pred_real(:,tt) = real(BigTau) * deltatau_est + real(sum(BigTau_const,2));
+        H_BB1_pred_imag(:,tt) = imag(BigTau) * deltatau_est + imag(sum(BigTau_const,2));
+        figure
+        plot(abs(H_BB1_pred_real(:,tt)+1j*H_BB1_pred_imag(:,tt)));hold on
+        plot(abs(H_BB1(:,1)));hold on
+        legend('pred','true')
+        
         %---------------------------------------------
         % phi estimation using previous alpha and tau
         %---------------------------------------------
-%         rayAOA_prev(1,:) = rayAOA_prev(1,:) + deltaAOA_est;
+%         for kk=1:Nfft
+%             bigPhi = sin(rayAOA_est(tt,:))-sin(phi_round1);
+%             bigTheta = -sin(rayAOD(1,:))+sin(theta1);
+%             BigPhi_const(kk,:) = alpha_est(1,:)...
+%                 .*exp(-1j*2*pi*kk*(tau_est)/(1e-9*Nfft))...
+%                 .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
+%                 .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta));
+%             for ray_index=1:ray_num
+%                 BigPHI(kk,ray_index) = alpha_est(ray_index)...
+%                 .*exp(-1j*2*pi*kk*(tau_est(ray_index))/(1e-9*Nfft))...
+%                 .*((-1j*pi*Nr*cos(rayAOA_est(tt,ray_index)))*exp(1j*pi*Nr*bigPhi(ray_index))*(1-exp(1j*pi*bigPhi(ray_index)))...
+%                 -(1-exp(1j*pi*Nr*bigPhi(ray_index)))*exp(1j*pi*bigPhi(ray_index))*(-1j*pi*cos(rayAOA_est(tt,ray_index))))...
+%                 ./((1-exp(1j*pi*bigPhi(ray_index)))^2)...
+%                 .*(1-exp(1j*pi*Nt*bigTheta(ray_index)))./(1-exp(1j*pi*bigTheta(ray_index)));
+%             end
+%         end
+%         H_BB1_pred(:,tt) = sum(BigPhi_const,2)+BigPHI*((rayAOA(1,:)-rayAOA_prev(1,:)).');
+%         deltaAOA_est = pinv([real(BigPHI);imag(BigPHI)])...
+%             *[real(H_BB1(:,tt)-sum(BigPhi_const,2));imag(H_BB1(:,tt)-sum(BigPhi_const,2))];
+%         AOA_est = rayAOA_est(tt,:) + deltaAOA_est.';
+%         
+%         
+        
+        %---------------------------------------------
+        % phi estimation using two assisted receiving beams
+        %---------------------------------------------
         for kk=1:Nfft
-            bigPhi = sin(rayAOA_est(tt,:))-sin(phi_round1);
+            bigPhi_bf1 = sin(rayAOA_est(1,:))-sin(phi_round1);
+            bigPhi_bf2 = sin(rayAOA_est(1,:))-sin(phi_round1_leftasst);
+            bigPhi_bf3 = sin(rayAOA_est(1,:))-sin(phi_round1_rightasst);
+            
             bigTheta = -sin(rayAOD(1,:))+sin(theta1);
-            BigPhi_const(kk,:) = alpha_est(1,:)...
-                .*exp(-1j*2*pi*kk*(tau_est)/(1e-9*Nfft))...
-                .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
-                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta));
+            BigPhi_const_bf1(kk,:) = alpha_est(1,:)...
+                .*exp(-1j*2*pi*kk*tau_est(1,:)/(1e-9*Nfft))...
+                .*(1-exp(1j*pi*Nr*bigPhi_bf1))./(1-exp(1j*pi*bigPhi_bf1))...
+                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
+                ./(Nt*Nr);
+            
+            BigPhi_const_bf2(kk,:) = alpha_est(1,:)...
+                .*exp(-1j*2*pi*kk*tau_est(1,:)/(1e-9*Nfft))...
+                .*(1-exp(1j*pi*Nr*bigPhi_bf2))./(1-exp(1j*pi*bigPhi_bf2))...
+                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
+                ./(Nt*Nr);
+            
+            BigPhi_const_bf3(kk,:) = alpha_est(1,:)...
+                .*exp(-1j*2*pi*kk*tau_est(1,:)/(1e-9*Nfft))...
+                .*(1-exp(1j*pi*Nr*bigPhi_bf3))./(1-exp(1j*pi*bigPhi_bf3))...
+                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
+                ./(Nt*Nr);
+            
             for ray_index=1:ray_num
-                phi_bar = phi_round1;
-                phi_chan = rayAOA_est(tt,ray_index);
-                BigPHI(kk,ray_index) = alpha_est(ray_index)...
-                .*exp(-1j*2*pi*kk*(tau_est(ray_index))/(1e-9*Nfft))...
-                .*((-1j*pi*Nr*cos(rayAOA_est(tt,ray_index)))*exp(1j*pi*Nr*bigPhi(ray_index))*(1-exp(1j*pi*bigPhi(ray_index)))...
-                -(1-exp(1j*pi*Nr*bigPhi(ray_index)))*exp(1j*pi*bigPhi(ray_index))*(-1j*pi*cos(rayAOA_est(tt,ray_index))))...
-                ./((1-exp(1j*pi*bigPhi(ray_index)))^2)...
-                .*(1-exp(1j*pi*Nt*bigTheta(ray_index)))./(1-exp(1j*pi*bigTheta(ray_index)));
+                BigPHI_bf1(kk,ray_index) = alpha_est(ray_index)...
+                .*exp(-1j*2*pi*kk*tau_est(ray_index)/(1e-9*Nfft))...
+                .*((-1j*pi*Nr*cos(rayAOA_est(tt,ray_index)))*exp(1j*pi*Nr*bigPhi_bf1(ray_index))*(1-exp(1j*pi*bigPhi_bf1(ray_index)))...
+                -(1-exp(1j*pi*Nr*bigPhi_bf1(ray_index)))*exp(1j*pi*bigPhi_bf1(ray_index))*(-1j*pi*cos(rayAOA_est(tt,ray_index))))...
+                ./((1-exp(1j*pi*bigPhi_bf1(ray_index)))^2)...
+                .*(1-exp(1j*pi*Nt*bigTheta(ray_index)))./(1-exp(1j*pi*bigTheta(ray_index)))...
+                ./(Nt*Nr);
+            
+                BigPHI_bf2(kk,ray_index) = alpha_est(ray_index)...
+                .*exp(-1j*2*pi*kk*tau_est(ray_index)/(1e-9*Nfft))...
+                .*((-1j*pi*Nr*cos(rayAOA_est(tt,ray_index)))*exp(1j*pi*Nr*bigPhi_bf2(ray_index))*(1-exp(1j*pi*bigPhi_bf2(ray_index)))...
+                -(1-exp(1j*pi*Nr*bigPhi_bf2(ray_index)))*exp(1j*pi*bigPhi_bf2(ray_index))*(-1j*pi*cos(rayAOA_est(tt,ray_index))))...
+                ./((1-exp(1j*pi*bigPhi_bf2(ray_index)))^2)...
+                .*(1-exp(1j*pi*Nt*bigTheta(ray_index)))./(1-exp(1j*pi*bigTheta(ray_index)))...
+                ./(Nt*Nr);
+                
+                BigPHI_bf3(kk,ray_index) = alpha_est(ray_index)...
+                .*exp(-1j*2*pi*kk*tau_est(ray_index)/(1e-9*Nfft))...
+                .*((-1j*pi*Nr*cos(rayAOA_est(tt,ray_index)))*exp(1j*pi*Nr*bigPhi_bf3(ray_index))*(1-exp(1j*pi*bigPhi_bf3(ray_index)))...
+                -(1-exp(1j*pi*Nr*bigPhi_bf3(ray_index)))*exp(1j*pi*bigPhi_bf3(ray_index))*(-1j*pi*cos(rayAOA_est(tt,ray_index))))...
+                ./((1-exp(1j*pi*bigPhi_bf3(ray_index)))^2)...
+                .*(1-exp(1j*pi*Nt*bigTheta(ray_index)))./(1-exp(1j*pi*bigTheta(ray_index)))...
+                ./(Nt*Nr);
+            
             end
         end
 %         H_BB1_pred(:,tt) = sum(BigPhi_const,2)+BigPHI*((rayAOA(1,:)-rayAOA_prev(1,:)).');
-        deltaAOA_est = pinv([real(BigPHI);imag(BigPHI)])...
-            *[real(H_BB1(:,tt)-sum(BigPhi_const,2));imag(H_BB1(:,tt)-sum(BigPhi_const,2))];
-        AOA_est = rayAOA_est(tt,:) + deltaAOA_est.';
+        y1_LS_comp = H_BB1(:,tt)-sum(BigPhi_const_bf1,2);
+        A1_LS_comp  = BigPHI_bf1;
         
-%         H_BB1_pred_real(:,tt) = real(BigPHI) * deltaAOA_est + real(sum(BigPhi_const,2));
-%         H_BB1_pred_imag(:,tt) = imag(BigPHI) * deltaAOA_est + imag(sum(BigPhi_const,2));
+        y2_LS_comp = H_BB1_bf2(:,tt)-sum(BigPhi_const_bf2,2);
+        A2_LS_comp  = BigPHI_bf2;
+        
+        y3_LS_comp = H_BB1_bf3(:,tt)-sum(BigPhi_const_bf3,2);
+        A3_LS_comp  = BigPHI_bf3;
+       
+        y_LS_3beam = [real(y1_LS_comp);imag(y1_LS_comp);
+                      real(y2_LS_comp);imag(y2_LS_comp);
+                      real(y3_LS_comp);imag(y3_LS_comp)];
+                  
+        A_LS_3beam = [real(A1_LS_comp);imag(A1_LS_comp);
+                      real(A2_LS_comp);imag(A2_LS_comp);
+                      real(A3_LS_comp);imag(A3_LS_comp)];
+        
+%         y_LS = [real(y1_LS_comp);imag(y1_LS_comp)];
+%         A_LS = [real(A1_LS_comp);imag(A1_LS_comp)];
+        
+        deltaAOA_est_3beam = pinv(sum(A_LS_3beam,2))*y_LS_3beam;
+%         deltaAOA_est = pinv(A_LS)*y_LS;
+%         deltaAOA_est_3beam = 0.0005
+        AOA_est = rayAOA_est(tt,:) + deltaAOA_est_3beam.';
+
+
+%         H_BB1_pred_real(:,tt) = real(sum(BigPhi_const_bf1,2));
+%         H_BB1_pred_imag(:,tt) = imag(sum(BigPhi_const_bf1,2));
+
+%         H_BB1_pred_real(:,tt) = real(BigPHI_bf1) * deltaAOA_est + real(sum(BigPhi_const_bf1,2));
+%         H_BB1_pred_imag(:,tt) = imag(BigPHI_bf1) * deltaAOA_est + imag(sum(BigPhi_const_bf1,2));
 %         figure
 %         plot(abs(H_BB1_pred_real(:,tt)+1j*H_BB1_pred_imag(:,tt)));hold on
 %         plot(abs(H_BB1(:,1)));hold on
@@ -538,58 +631,29 @@ for tt = 1:length(t_range)
         H_BB1_pred(kk,tt) = sum(alpha_est(1,:)...
                 .*exp(-1j*2*pi*kk*tau_est/(1e-9*Nfft))...
                 .*(1-exp(1j*pi*Nr*bigPhi_est))./(1-exp(1j*pi*bigPhi_est))...
-                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta)));
+                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta)))...
+                ./(Nt*Nr);
         end
-        
-%         %---------------------------------------------
-%         % Pre-Beamforming MIMO Channel Using Estimated Parameter
-%         %---------------------------------------------
-%         % Est. chan
-%         H_freq_pred = get_H_freq2(alpha_est(1,:),...
-%                                   tau_est(1:ray_num),...
-%                                   AOA_est(1:ray_num),...
-%                                   rayAOD(1,1:ray_num),...
-%                                   1,...
-%                                   ray_num,...
-%                                   Nt, Nr, fc);
-%         % True chan.
-%         H_freq_true = get_H_freq2(raygain(1,:),...
-%                                   raydelay(1,:),...
-%                                   rayAOA(1,:),...
-%                                   rayAOD(1,:),...
-%                                   1,...
-%                                   ray_num,...
-%                                   Nt, Nr, fc);      
-%         for kk=1:Nfft
-%             chan_error_pred(kk) = norm(squeeze(H_freq_pred(:,:,kk))-squeeze(H_freq_true(:,:,kk)),'fro')^2;
-%             chan_error_oldchan(kk) = norm(squeeze(H_freq0(:,:,kk))-squeeze(H_freq_true(:,:,kk)),'fro')^2;
-%             chan_pow(kk) = norm(squeeze(H_freq_true(:,:,kk)),'fro')^2;
-%         end
-%         
-%         %---------------------------------------------
-%         % Another way of Evaluating Post-Beamforming NMSE
-%         %---------------------------------------------
-%         for kk=1:Nfft
-%             H_BB1_pred2(kk,tt) = arx1'*squeeze(H_freq_pred(:,:,kk))*atx1;
-%         end
-%         
-        
+    
     % post-BF evaluation
     MSE_tracking_BB1(tt) = norm(H_BB1(:,tt)-H_BB1_pred(:,tt),'fro')/norm(H_BB1(:,tt),'fro');
     MSE_oldest_BB1(tt) = norm(H_BB1(:,tt)-H_BB1(:,1),'fro')/norm(H_BB1(:,tt),'fro');
     
-    % pre-BF evaluation
-%     MSE_oldchan(tt) = mean(chan_error_oldchan)/mean(chan_pow);
-%     MSE_pred(tt) = mean(chan_error_pred)/mean(chan_pow);
-
 end
 raydelay_est_BB1 = raydelay_est;
 rayAOA_est_BB1 = rayAOA_est;
 raygain_est_BB1 = raygain_est;
+%%
+figure
+plot(MSE_tracking_BB1,'linewidth',3);hold on;
+plot(MSE_oldest_BB1,'linewidth',3);hold on
+grid on
+xlabel('time (ms)')
+title('MSE in Tracking')
+ylabel('MSE')
+legend('BB1 w/ tracking','BB1 w/o tracking')
+
 %% Parameter tracking using Alternative Search BB2
-% rho = 0.995;
-% speed_v = [2,0];
-% t_range = (0:5:100)*1e-3;
 
 raydelay_est = zeros(length(t_range),ray_num);
 rayAOA_est = zeros(length(t_range),ray_num);
@@ -606,26 +670,7 @@ for tt = 1:length(t_range)
         raygain_est(tt,:) = alpha_est;
     end
 %     
-%     % update true channel
-%     loc_ue = loc0_ue+speed_v*t_range(tt);
-%     clc
-%     fprintf('Time Evolution %2.4f s\n',t_range(tt));
-%     [raydelay, rayAOA, rayAOD ] = get_multipath(loc0_bs, loc_ue, loc_cluster_total,...
-%                                             cluster_num, ray_num );
-%     raygain = raygain.*exp(1j*rand(cluster_num,ray_num)*2*pi*sqrt(1-rho^2));
-% 
-%     raydelay_true(tt,:) = raydelay(1,:);
-%     rayAOA_true(tt,:) = rayAOA(1,:);
-%     raygain_true(tt,:) = raygain(1,:);
-% 
-%     H_freq = get_H_freq2(raygain, raydelay, rayAOA, rayAOD, cluster_num, ray_num, Nt, Nr, fc);
-% 
-%     for kk=1:Nfft
-%         H_BB1(kk,tt) = arx1'*squeeze(H_freq(:,:,kk))*atx1;
-%     end
 
-    % Alternative estimation parameters
-    
         %---------------------------------------------
         % Alpha estimation using previous tau and phi
         %---------------------------------------------
@@ -736,15 +781,7 @@ title('MSE in Tracking')
 ylabel('MSE')
 legend('BB1 w/ tracking','BB1 w/o tracking','BB2 w/ tracking','BB2 w/o tracking')
 
-%% pre-beamforming NMSE
-% figure
-% semilogy(1e3*t_range, (MSE_pred),'-o');hold on
-% semilogy(1e3*t_range, (MSE_oldchan),'-o');hold on
-% grid on
-% legend('w/ tracking','w/o tracking')
-% xlabel('Time (ms)')
-% ylabel('MSE')
-% title('pre-beamforming Chan. MSE')
+
 %% reconstruct MIMO channel
 L = cluster_num;
 SINR_k = zeros(L,Nfft);
@@ -793,55 +830,3 @@ end
 %
 figure; plot(t_range, capacity)
         
-%% Compute SINR and capacity
-% noise_pow = 1;
-% L = cluster_num;
-% SINR_k = zeros(L,Nfft);
-% % t_idx = 1;
-% % t_range_new = [0 t_range];
-% capacity = zeros(1, length(t_range));
-% 
-% for tt= 1:length(t_range)
-%     for k = 1:Nfft
-%         if(t_future==0)
-%             vec_H_k_est =   kr(conj(A_t_est), (A_r_est))* (zeta(1:L_est,k) ./zeta(1:L_est,1)) ;%* sqrt(abs(zeta(1,k)).^2));
-%             H_k_est = reshape(vec_H_k_est,Nr, Nt);
-% 
-%             [U,S,V] = svd(H_k_est);
-%             % arrange in descending order of S
-%             [diag_S, temp_idx] = sort(diag(S), 'descend');
-%             S_sorted  = diag(diag_S);
-%             U_sorted = U(:,temp_idx);
-%             V_sorted = V(:,temp_idx);     
-%             
-%             U_est{k} = U_sorted(:,1:L);
-%             V_est{k} = V_sorted(:,1:L);
-%             
-%             H_k = squeeze(H_freq(:,:,k));
-%         else
-%             H_k = squeeze(H_freq_future{t_future==t_range}(:,:,k));
-%         end
-%         
-%         gain = U_est{k}' * H_k *V_est{k};
-%         
-%         for l=1:L
-%             SINR_k(l, k) = abs(gain(l,l))^2 / (sum(abs(gain(l,:)).^2) -abs(gain(l,l))^2  + noise_pow);
-%         end
-%         
-%         [U_true,S_true,V_true] = svd(H_k);
-%         % arrange in descending order of S
-%         [diag_S_true, temp_idx] = sort(diag(S_true), 'descend');
-%         S_true_sorted  = diag(diag_S_true);
-%         U_true_sorted = U_true(:,temp_idx);
-%         V_true_sorted = V_true(:,temp_idx);
-%     end
-%     
-%     capacity(t_future==t_range_new) = mean(sum(log2(1+SINR_k))); % bpz/Hz
-% end
-% 
-% 
-%     
-%     
-% 
-% 
-% figure; plot(t_range_new, capacity)
