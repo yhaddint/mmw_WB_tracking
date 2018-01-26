@@ -1,3 +1,5 @@
+% Quick look at main-lobe and side-lobes of spatial beams
+
 clear;clc;
 Nr = 32;
 phi0 = 30/180*pi;
