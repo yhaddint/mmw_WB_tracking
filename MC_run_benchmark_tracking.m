@@ -1,5 +1,10 @@
-% test whether it is possible to get reasonable "initial guess" of channle
-% parameter
+% This script runs Monte Carlo simulation to evaluate the achievable rate
+% of two benchmark tracking algorithms
+
+% The current version supports tracking the primary multipath cluster and
+% transmit single data stream
+
+
 clear;clc;
 ray_num = 20;
 MCtimes = 5;
@@ -34,7 +39,7 @@ for ss = 1:length(SNR_range)
         fprintf('MC Realization %d \n',MCindex);
 
            [capacity_refine, capacity_NBtrack, capacity_trueCSI]...
-               = capacity_benchmark_v1(noise_pow,...
+               = capacity_benchmark(noise_pow,...
                                        t_range,...
                                        speed_rotate,...
                                        plot_para(MCindex),...
