@@ -1,9 +1,11 @@
 % test whether it is possible to get reasonable "initial guess" of channle
 % parameter
 clear;clc;close all
-rng(1)
+rng(2)
 %% other parameter
-plot_ellipse = 0;
+plot_ellipse = 1;
+noise_pow = 1;
+
 %% Goemetry Parameters
 Nt = 16;
 Nr = 16;
@@ -13,9 +15,9 @@ loc0_bs = [D_bs2ue/2,0];
 speed_c = 3e8;
 fc = 28e9;
 %% Large Scale Parameter (Multiple Clusters)
-cluster_delay = [300e-9,200e-9];
+cluster_delay = [300e-9,250e-9];
 cluster_num = 2;
-ray_num = 10;
+ray_num = 20;
 
 %% Cluster Generation (Strongest Two?)
 for cluster_index = 1:cluster_num
@@ -92,7 +94,8 @@ H_freq0 = H_freq0 / norm_factor ;
 
 %%
 phi1 = mean(rayAOA(1,:),2);
-phi_round1 = round(mean(rayAOA(1,:),2)/pi*2^6)/2^6*pi;
+% phi_round1 = round(mean(rayAOA(1,:),2)/pi*2^6)/2^6*pi;
+phi_round1 = phi1;
 arx1 = exp(1j*(0:Nr-1)'*pi*sin(phi_round1))/sqrt(Nr);
 
 phi_round1_leftasst = (round(mean(rayAOA(1,:),2)/pi*2^6)-0.25)/2^6*pi;
@@ -104,14 +107,25 @@ theta1 = mean(rayAOD(1,:),2);
 atx1 = exp(1j*(0:Nt-1)'*pi*sin(theta1))/sqrt(Nt);
 
 phi2 = mean(rayAOA(2,:),2);
-phi_round2 = round(mean(rayAOA(2,:),2)/pi*2^6)/2^6*pi;
+% phi_round2 = round(mean(rayAOA(2,:),2)/pi*2^6)/2^6*pi;
+phi_round2 = phi2;
 arx2 = exp(1j*(0:Nr-1)'*pi*sin(phi_round2))/sqrt(Nr);
 theta2 = mean(rayAOD(2,:),2);
 atx2 = exp(1j*(0:Nt-1)'*pi*sin(theta2))/sqrt(Nt);
 %% quick look at post-beamforming wideband channel 
+if noise_pow == 10
+    NMSE = -10;
+elseif noise_pow == 1
+    NMSE = -20;
+elseif noise_pow == 0.1
+    NMSE = -30;
+end
+
+H_error_scaler = sqrt(10^(NMSE/10));
 for kk=1:Nfft
-    H_BB1(kk,1) = arx1'*squeeze(H_freq0(:,:,kk))*atx1;
-    H_BB2(kk,1) = arx2'*squeeze(H_freq0(:,:,kk))*atx2;
+    H_error = (randn(Nr,Nt)+1j*randn(Nr,Nt))/sqrt(2)*H_error_scaler;
+    H_BB1(kk,1) = arx1'*(squeeze(H_freq0(:,:,kk))+H_error)*atx1;
+    H_BB2(kk,1) = arx2'*(squeeze(H_freq0(:,:,kk))+H_error)*atx2;
 end
 % figure
 % plot(10*log10(abs(H_BB1(:,1))))
@@ -160,7 +174,11 @@ for tt = 1:t_num
         % Alpha estimation using previous tau and phi
         %---------------------------------------------
         for kk=1:Nfft
-            bigPhi = sin(rayAOA_prev(1,:))-sin(phi_round1);
+            if tt==1
+                bigPhi = ones(1,ray_num)*1e-5;
+            else
+                bigPhi = sin(rayAOA_prev(1,:))-sin(phi_round1);
+            end
             bigTheta = -sin(rayAOD(1,:))+sin(theta1);
             BigAlpha(kk,:) = exp(-1j*2*pi*kk*(raydelay_prev(1,:))/(1e-9*Nfft))...
                 .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
@@ -179,7 +197,7 @@ for tt = 1:t_num
         % tau estimation with previous alpha and phi
         %---------------------------------------------
         for kk=1:Nfft
-            bigPhi = sin(rayAOA_prev(1,:))-sin(phi_round1);
+%             bigPhi = sin(rayAOA_prev(1,:))-sin(phi_round1);
             bigTheta = -sin(rayAOD(1,:))+sin(theta1);
             BigTau(kk,:) = (-1j*2*pi/(Nfft*1e-9)*kk)...
             .*exp(-1j*2*pi*kk*(raydelay_prev(1,:))/(1e-9*Nfft))...
@@ -211,7 +229,7 @@ for tt = 1:t_num
         %---------------------------------------------
 %         rayAOA_prev(1,:) = rayAOA_prev(1,:) + deltaAOA_est;
         for kk=1:Nfft
-            bigPhi = sin(rayAOA_prev(1,:))-sin(phi_round1);
+%             bigPhi = sin(rayAOA_prev(1,:))-sin(phi_round1);
             bigTheta = -sin(rayAOD(1,:))+sin(theta1);
             BigPhi_const(kk,:) = alpha_est(1,:)...
                 .*exp(-1j*2*pi*kk*(tau_est)/(1e-9*Nfft))...
@@ -284,7 +302,12 @@ for tt = 1:t_num
         % Alpha estimation using previous tau and phi
         %---------------------------------------------
         for kk=1:Nfft
-            bigPhi = sin(rayAOA_prev(1,:))-sin(phi_round2);
+            if tt==1
+                bigPhi = ones(1,ray_num)*1e-5;
+            else
+                bigPhi = sin(rayAOA_prev(1,:))-sin(phi_round2);
+            end
+%             bigPhi = sin(rayAOA_prev(1,:))-sin(phi_round2);
             bigTheta = -sin(rayAOD(2,:))+sin(theta2);
             BigAlpha(kk,:) = exp(-1j*2*pi*kk*(raydelay_prev(1,:))/(1e-9*Nfft))...
                 .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
@@ -303,7 +326,7 @@ for tt = 1:t_num
         % tau estimation with previous alpha and phi
         %---------------------------------------------
         for kk=1:Nfft
-            bigPhi = sin(rayAOA_prev(1,:))-sin(phi_round2);
+%             bigPhi = sin(rayAOA_prev(1,:))-sin(phi_round2);
             bigTheta = -sin(rayAOD(2,:))+sin(theta2);
             BigTau(kk,:) = (-1j*2*pi/(Nfft*1e-9)*kk)...
             .*exp(-1j*2*pi*kk*(raydelay_prev(1,:))/(1e-9*Nfft))...
@@ -335,7 +358,7 @@ for tt = 1:t_num
         %---------------------------------------------
 %         rayAOA_prev(1,:) = rayAOA_prev(1,:) + deltaAOA_est;
         for kk=1:Nfft
-            bigPhi = sin(rayAOA_prev(1,:))-sin(phi_round2);
+%             bigPhi = sin(rayAOA_prev(1,:))-sin(phi_round2);
             bigTheta = -sin(rayAOD(2,:))+sin(theta2);
             BigPhi_const(kk,:) = alpha_est(1,:)...
                 .*exp(-1j*2*pi*kk*(tau_est)/(1e-9*Nfft))...
@@ -399,16 +422,17 @@ alpha_est2 = alpha_est;
 % ylabel('MSE in BB2')
 %% Channel change in BB1 and BB2
 rho = 1;
-t_range = (10:10:1000)*1e-3;
+speed_rotate = -100/180*pi;
+t_range = (2.5:2.5:200)*1e-3;
 for tt = 1:length(t_range)
     t_now = t_range(tt);
     dt = t_range(2)-t_range(1);
     
     % setup speed
     if t_now<500e-3
-        speed_v = [5, 0];
+        speed_v = [10, 0];
     else
-        speed_v = [5, 0];
+        speed_v = [10, 0];
     end
     
     if tt==1
@@ -421,6 +445,7 @@ for tt = 1:length(t_range)
 %     fprintf('Time Evolution %2.4f s\n',t_range(tt));
     [raydelay, rayAOA, rayAOD ] = get_multipath(loc0_bs, loc_ue, loc_cluster_total,...
                                             cluster_num, ray_num );
+    rayAOA = rayAOA + speed_rotate * (tt-1) * dt;
     raygain = raygain.*exp(1j*rand(cluster_num,ray_num)*2*pi*sqrt(1-rho^2));
 %     H_freq = get_H_freq2(raygain, raydelay, rayAOA, rayAOD, cluster_num, ray_num, Nt, Nr);
 %     H_freq = H_freq / norm_factor ;
@@ -435,254 +460,205 @@ for tt = 1:length(t_range)
     rayAOA_true_BB2(tt,:)  = rayAOA(2,:);
 end
 
-%% Parameter tracking using Alternative Search BB1
+%% Parameter tracking using gradient descent
+stepsize = 1e-7;
 
-raydelay_est = zeros(length(t_range),ray_num);
-rayAOA_est = zeros(length(t_range),ray_num);
-raygain_est = zeros(length(t_range),ray_num);
+raydelay_est_BB1 = zeros(length(t_range),ray_num);
+rayAOA_est_BB1 = zeros(length(t_range),ray_num);
+raygain_est_BB1 = zeros(length(t_range),ray_num);
+
+raydelay_est_BB2 = zeros(length(t_range),ray_num);
+rayAOA_est_BB2 = zeros(length(t_range),ray_num);
+raygain_est_BB2 = zeros(length(t_range),ray_num);
 
 for tt = 1:length(t_range)
     
     raygain(1,:) = raygain_true_BB1(tt,:);
-    raygain(2,:) = raygain_true_BB2(tt,:);
     raydelay(1,:) = raydelay_true_BB1(tt,:);
-    raydelay(2,:) = raydelay_true_BB2(tt,:);
     rayAOA(1,:) = rayAOA_true_BB1(tt,:);
+    
+    raygain(2,:) = raygain_true_BB2(tt,:);
+    raydelay(2,:) = raydelay_true_BB2(tt,:);
     rayAOA(2,:) = rayAOA_true_BB2(tt,:);
-
+    
     H_freq = get_H_freq2(raygain, raydelay, rayAOA, rayAOD, cluster_num, ray_num, Nt, Nr);
-    H_freq = H_freq / norm_factor ;
+    H_freq = H_freq / norm_factor;
+    MIMO_noise = (randn(Nr,Nt,Nfft)+1j*randn(Nr,Nt,Nfft))*sqrt(noise_pow/2);
+    H_freq_noisy = H_freq + MIMO_noise;
     
     arx1 = exp(1j*(0:Nr-1)'*pi*sin(phi_round1))/sqrt(Nr);
-    
+    arx2 = exp(1j*(0:Nr-1)'*pi*sin(phi_round2))/sqrt(Nr);
+
     for kk=1:Nfft
-        H_BB1(kk,tt) = arx1'*squeeze(H_freq(:,:,kk))*atx1;   
+        H_error = (randn(Nr,Nt)+1j*randn(Nr,Nt))/sqrt(2)*H_error_scaler;
+        H_BB1(kk,tt) = arx1'*(squeeze(H_freq(:,:,kk))+H_error)*atx1;   
+        H_BB2(kk,tt) = arx2'*(squeeze(H_freq(:,:,kk))+H_error)*atx2;   
     end
-    
     
     if tt==1
-        raydelay_est(tt,:) = tau_est1;
-        rayAOA_est(tt,:) = AOA_est1;
-        raygain_est(tt,:) = alpha_est1;
-%         raydelay_est(tt,:) = raydelay(1,:);
-%         rayAOA_est(tt,:) = rayAOA(1,:);
-%         raygain_est(tt,:) = raygain(1,:)/norm_factor;
+        raydelay_est_BB1(tt,:) = tau_est1;
+        rayAOA_est_BB1(tt,:) = AOA_est1;
+        raygain_est_BB1(tt,:) = alpha_est1;
+
+        raydelay_est_BB2(tt,:) = tau_est2;
+        rayAOA_est_BB2(tt,:) = AOA_est2;
+        raygain_est_BB2(tt,:) = alpha_est2;
+        
+%         raydelay_est_BB1(tt,:) = raydelay(1,:);
+%         rayAOA_est_BB1(tt,:) = rayAOA(1,:);
+%         raygain_est_BB1(tt,:) = raygain(1,:)/norm_factor;
+%         
+%         raydelay_est_BB2(tt,:) = raydelay(2,:);
+%         rayAOA_est_BB2(tt,:) = rayAOA(2,:);
+%         raygain_est_BB2(tt,:) = raygain(2,:)/norm_factor;
     else
-        raydelay_est(tt,:) = tau_est;
-        rayAOA_est(tt,:) = AOA_est;
-        raygain_est(tt,:) = alpha_est;
+        raydelay_est_BB1(tt,:) = tau_est_BB1;
+        rayAOA_est_BB1(tt,:) = phi_est_BB1;
+        raygain_est_BB1(tt,:) = alpha_est_BB1;
+        
+        raydelay_est_BB2(tt,:) = tau_est_BB2;
+        rayAOA_est_BB2(tt,:) = phi_est_BB2;
+        raygain_est_BB2(tt,:) = alpha_est_BB2;
     end
     
-    % Alternative estimation parameters
-        
-        alpha_est = raygain_est(tt,:);
-        %---------------------------------------------
-        % tau estimation with previous alpha and phi
-        %---------------------------------------------
-        for kk=1:Nfft
-            bigPhi = sin(rayAOA_est(tt,:))-sin(phi_round1);
-            bigTheta = -sin(rayAOD(1,:))+sin(theta1);
-            BigTau(kk,:) = (-1j*2*pi/(Nfft*1e-9)*kk)...
-            .*exp(-1j*2*pi*kk*(raydelay_est(tt,:))/(1e-9*Nfft))...
-            .*alpha_est...    
-            .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
-            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
-            ./(Nt*Nr);
-            
-            BigTau_const(kk,:) = exp(-1j*2*pi*kk*(raydelay_est(tt,:))/(1e-9*Nfft))...
-            .*alpha_est...    
-            .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
-            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
-            ./(Nt*Nr);
-        end
-        deltatau_est = pinv([real(BigTau);imag(BigTau)])...
-            *[real(H_BB1(:,tt)-sum(BigTau_const,2));imag(H_BB1(:,tt)-sum(BigTau_const,2))];
-        tau_est = raydelay_est(tt,:) + deltatau_est.';
-        
-        
-        %---------------------------------------------
-        % phi estimation using two assisted receiving beams
-        %---------------------------------------------
-        for kk=1:Nfft
-            bigPhi_bf1 = sin(rayAOA_est(tt,:))-sin(phi_round1);
-            
-            bigTheta = -sin(rayAOD(1,:))+sin(theta1);
-            BigPhi_const_bf1(kk,:) = alpha_est(1,:)...
-                .*exp(-1j*2*pi*kk*tau_est(1,:)/(1e-9*Nfft))...
-                .*(1-exp(1j*pi*Nr*bigPhi_bf1))./(1-exp(1j*pi*bigPhi_bf1))...
-                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
-                ./(Nt*Nr);
-            
-            
-            for ray_index=1:ray_num
-                BigPHI_bf1(kk,ray_index) = alpha_est(ray_index)...
-                .*exp(-1j*2*pi*kk*tau_est(ray_index)/(1e-9*Nfft))...
-                .*(((1-exp(1j*pi*bigPhi_bf1(ray_index)))*(-exp(1j*pi*Nr*bigPhi_bf1(ray_index)))*(1j*pi*Nr*cos(rayAOA_est(ray_index))))...
-                  -((1-exp(1j*pi*Nr*bigPhi_bf1(ray_index)))*(-exp(1j*pi*bigPhi_bf1(ray_index)))*(1j*pi*cos(rayAOA_est(ray_index)))))...
-                ./((1-exp(-1j*pi*bigPhi_bf1(ray_index))).^2)...
-                .*(1-exp(1j*pi*Nt*bigTheta(ray_index)))./(1-exp(1j*pi*bigTheta(ray_index)))...
-                ./(Nt*Nr);
-            
-            end
-        end
-        
-        y1_LS_comp = H_BB1(:,tt)-sum(BigPhi_const_bf1,2);
-        A1_LS_comp  = BigPHI_bf1;
-        
-        y_LS = [real(y1_LS_comp);imag(y1_LS_comp)];
-        A_LS = [real(A1_LS_comp);imag(A1_LS_comp)];
-        
-        deltaAOA_est = sum(A_LS,2)'*y_LS;
-        AOA_est = rayAOA_est(tt,:) + (1e-7)*deltaAOA_est.';
+    % gain is not updated in this algorithm
+    alpha_est_BB1 = raygain_est_BB1(tt,:);
+    alpha_est_BB2 = raygain_est_BB2(tt,:);
 
-        
+    % LMS update for channel parameters in BB1
+    [tau_est_BB1, deltaAOA_est_BB1,  phi_est_BB1] ...
+        = LMS_tracking( alpha_est_BB1,...
+                        raydelay_est_BB1(tt,:),...
+                        rayAOA_est_BB1(tt,:),...
+                        phi_round1,...
+                        rayAOD(1,:),...
+                        theta1,...
+                        H_BB1(:,tt),...
+                        Nt, Nr, Nfft, ray_num, stepsize);
+
+    phi_round1 = phi_round1 + stepsize * deltaAOA_est_BB1.';
+
+        % LMS update for channel parameters in BB2
+    [tau_est_BB2, deltaAOA_est_BB2,  phi_est_BB2] ...
+        = LMS_tracking( alpha_est_BB2,...
+                        raydelay_est_BB2(tt,:),...
+                        rayAOA_est_BB2(tt,:),...
+                        phi_round2,...
+                        rayAOD(2,:),...
+                        theta2,...
+                        H_BB2(:,tt),...
+                        Nt, Nr, Nfft, ray_num, stepsize);
+
+    phi_round2 = phi_round2 + stepsize * deltaAOA_est_BB2.';
         %---------------------------------------------
         % Post-Beamforming Channel Using Estimated Parameter
         %---------------------------------------------
-        bigPhi_est = sin(AOA_est)-sin(phi_round1);
+        bigPhi_est = sin(phi_est_BB1)-sin(phi_round1);
+        bigTheta = -sin(rayAOD(1,:))+sin(theta1);
         for kk=1:Nfft
-        H_BB1_pred(kk,tt) = sum(alpha_est(1,:)...
-                .*exp(-1j*2*pi*kk*tau_est/(1e-9*Nfft))...
+        H_BB1_pred(kk,tt) = sum(alpha_est_BB1(1,:)...
+                .*exp(-1j*2*pi*kk*tau_est_BB1/(1e-9*Nfft))...
                 .*(1-exp(1j*pi*Nr*bigPhi_est))./(1-exp(1j*pi*bigPhi_est))...
                 .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta)))...
                 ./(Nt*Nr);
         end
-        phi_round1 = phi_round1+(1e-7)*deltaAOA_est.';
+        
+        bigPhi_est = sin(phi_est_BB2)-sin(phi_round2);
+        bigTheta = -sin(rayAOD(2,:))+sin(theta2);
+        for kk=1:Nfft
+        H_BB2_pred(kk,tt) = sum(alpha_est_BB2(1,:)...
+                .*exp(-1j*2*pi*kk*tau_est_BB2/(1e-9*Nfft))...
+                .*(1-exp(1j*pi*Nr*bigPhi_est))./(1-exp(1j*pi*bigPhi_est))...
+                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta)))...
+                ./(Nt*Nr);
+        end
 
     
     % post-BF evaluation
     MSE_tracking_BB1(tt) = norm(H_BB1(:,tt)-H_BB1_pred(:,tt),'fro')/norm(H_BB1(:,tt),'fro');
     MSE_oldest_BB1(tt) = norm(H_BB1(:,tt)-H_BB1(:,1),'fro')/norm(H_BB1(:,tt),'fro');
     
-end
-raydelay_est_BB1 = raydelay_est;
-rayAOA_est_BB1 = rayAOA_est;
-raygain_est_BB1 = raygain_est;
-
-%% Parameter tracking using Alternative Search BB2
-
-raydelay_est = zeros(length(t_range),ray_num);
-rayAOA_est = zeros(length(t_range),ray_num);
-raygain_est = zeros(length(t_range),ray_num);
-
-for tt = 1:length(t_range)
-    
-    raygain(1,:) = raygain_true_BB1(tt,:);
-    raygain(2,:) = raygain_true_BB2(tt,:);
-    raydelay(1,:) = raydelay_true_BB1(tt,:);
-    raydelay(2,:) = raydelay_true_BB2(tt,:);
-    rayAOA(1,:) = rayAOA_true_BB1(tt,:);
-    rayAOA(2,:) = rayAOA_true_BB2(tt,:);
-
-    H_freq = get_H_freq2(raygain, raydelay, rayAOA, rayAOD, cluster_num, ray_num, Nt, Nr);
-    H_freq = H_freq / norm_factor ;
-    
-    arx2 = exp(1j*(0:Nr-1)'*pi*sin(phi_round2))/sqrt(Nr);
-    
-    for kk=1:Nfft
-        H_BB2(kk,tt) = arx2'*squeeze(H_freq(:,:,kk))*atx2;
-    end
-    
-    
-    if tt==1
-        raydelay_est(tt,:) = tau_est2;
-        rayAOA_est(tt,:) = AOA_est2;
-        raygain_est(tt,:) = alpha_est2;
-%         raydelay_est(tt,:) = raydelay(2,:);
-%         rayAOA_est(tt,:) = rayAOA(2,:);
-%         raygain_est(tt,:) = raygain(2,:)/norm_factor;
-    else
-        raydelay_est(tt,:) = tau_est;
-        rayAOA_est(tt,:) = AOA_est;
-        raygain_est(tt,:) = alpha_est;
-    end
-    
-    % Alternative estimation parameters
-    
-        alpha_est = raygain_est(tt,:);
-        
-        %---------------------------------------------
-        % tau estimation with previous alpha and phi
-        %---------------------------------------------
-        for kk=1:Nfft
-            bigPhi = sin(rayAOA_est(tt,:))-sin(phi_round2);
-            bigTheta = -sin(rayAOD(2,:))+sin(theta2);
-            BigTau(kk,:) = (-1j*2*pi/(Nfft*1e-9)*kk)...
-            .*exp(-1j*2*pi*kk*(raydelay_est(tt,:))/(1e-9*Nfft))...
-            .*alpha_est...    
-            .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
-            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
-            ./(Nt*Nr);
-            
-            BigTau_const(kk,:) = exp(-1j*2*pi*kk*(raydelay_est(tt,:))/(1e-9*Nfft))...
-            .*alpha_est...    
-            .*(1-exp(1j*pi*Nr*bigPhi))./(1-exp(1j*pi*bigPhi))...
-            .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
-            ./(Nt*Nr);
-        end
-        deltatau_est = pinv([real(BigTau);imag(BigTau)])...
-            *[real(H_BB2(:,tt)-sum(BigTau_const,2));imag(H_BB2(:,tt)-sum(BigTau_const,2))];
-        tau_est = raydelay_est(tt,:) + deltatau_est.';
-        
-
-        
-        %---------------------------------------------
-        % phi estimation using two assisted receiving beams
-        %---------------------------------------------
-        for kk=1:Nfft
-            bigPhi_bf1 = sin(rayAOA_est(tt,:))-sin(phi_round2);
-            
-            bigTheta = -sin(rayAOD(2,:))+sin(theta2);
-            BigPhi_const_bf1(kk,:) = alpha_est...
-                .*exp(-1j*2*pi*kk*tau_est(1,:)/(1e-9*Nfft))...
-                .*(1-exp(1j*pi*Nr*bigPhi_bf1))./(1-exp(1j*pi*bigPhi_bf1))...
-                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta))...
-                ./(Nt*Nr);
-            
-            
-            for ray_index=1:ray_num
-                BigPHI_bf1(kk,ray_index) = alpha_est(ray_index)...
-                .*exp(-1j*2*pi*kk*tau_est(ray_index)/(1e-9*Nfft))...
-                .*(((1-exp(1j*pi*bigPhi_bf1(ray_index)))*(-exp(1j*pi*Nr*bigPhi_bf1(ray_index)))*(1j*pi*Nr*cos(rayAOA_est(ray_index))))...
-                  -((1-exp(1j*pi*Nr*bigPhi_bf1(ray_index)))*(-exp(1j*pi*bigPhi_bf1(ray_index)))*(1j*pi*cos(rayAOA_est(ray_index)))))...
-                ./((1-exp(-1j*pi*bigPhi_bf1(ray_index))).^2)...
-                .*(1-exp(1j*pi*Nt*bigTheta(ray_index)))./(1-exp(1j*pi*bigTheta(ray_index)))...
-                ./(Nt*Nr);
-            end
-        end
-%         H_BB1_pred(:,tt) = sum(BigPhi_const,2)+BigPHI*((rayAOA(1,:)-rayAOA_prev(1,:)).');
-        y1_LS_comp = H_BB2(:,tt)-sum(BigPhi_const_bf1,2);
-        A1_LS_comp  = BigPHI_bf1;
-
-        
-        y_LS = [real(y1_LS_comp);imag(y1_LS_comp)];
-        A_LS = [real(A1_LS_comp);imag(A1_LS_comp)];
-        
-        deltaAOA_est = sum(A_LS,2)'*y_LS;
-        AOA_est = rayAOA_est(tt,:) + (1e-7)*deltaAOA_est.';
-        
-        %---------------------------------------------
-        % Post-Beamforming Channel Using Estimated Parameter
-        %---------------------------------------------
-        bigPhi_est = sin(AOA_est)-sin(phi_round2);
-        for kk=1:Nfft
-        H_BB2_pred(kk,tt) = sum(alpha_est(1,:)...
-                .*exp(-1j*2*pi*kk*tau_est/(1e-9*Nfft))...
-                .*(1-exp(1j*pi*Nr*bigPhi_est))./(1-exp(1j*pi*bigPhi_est))...
-                .*(1-exp(1j*pi*Nt*bigTheta))./(1-exp(1j*pi*bigTheta)))...
-                ./(Nt*Nr);
-        end
-        phi_round2 = phi_round2+(1e-7)*deltaAOA_est.';
-
-    
-    % post-BF evaluation
     MSE_tracking_BB2(tt) = norm(H_BB2(:,tt)-H_BB2_pred(:,tt),'fro')/norm(H_BB2(:,tt),'fro');
     MSE_oldest_BB2(tt) = norm(H_BB2(:,tt)-H_BB2(:,1),'fro')/norm(H_BB2(:,tt),'fro');
     
+    % capacity evaluation
+%     L = cluster_num;
+    L = 1;
+    SINR_k = zeros(L,Nfft);
+
+    H_freq_est = get_H_freq2([alpha_est_BB1; alpha_est_BB2],...
+                             [tau_est_BB1;   tau_est_BB2],...
+                             [phi_est_BB1;   phi_est_BB2],...
+                              rayAOD,...
+                              cluster_num,...
+                              ray_num,...
+                              Nt, Nr);
+    
+    for kk=1:Nfft
+        [U,S,V] = svd(H_freq_est(:,:,kk));
+        [diag_S, temp_idx] = sort(diag(S), 'descend');
+        S_sorted  = diag(diag_S);
+        U_sorted = U(:,temp_idx);
+        V_sorted = V(:,temp_idx); 
+        U_est{kk} = U_sorted(:,1:L);
+        V_est{kk} = V_sorted(:,1:L);
+        
+        % true chan
+        H_k = squeeze(H_freq(:,:,kk));
+        gain = U_est{kk}' * H_k *V_est{kk};
+        
+        if L==2
+            % Capcity computing with L = 2 multiplexed streams
+            SINR_k(1, kk) = abs(gain(1,1))^(2) / ((abs(gain(1,2)).^2) + noise_pow);
+            SINR_k(2, kk) = abs(gain(2,2))^(2) / ((abs(gain(2,1)).^2) + noise_pow);
+        elseif L==1
+            % Capcity computing with L = 2 multiplexed streams
+            SINR_k(1, kk) = abs(gain(1,1))^(2) / (noise_pow);
+        end
+    end
+    if L==2
+        capacity_track(tt) = mean(sum(log2(1+SINR_k))); % bps/Hz
+    elseif L==1
+        capacity_track(tt) = mean(log2(1+SINR_k)); % bps/Hz
+    end
+
+
+    
+    % with perfect CSI
+    for kk=1:Nfft
+        H_error = (randn(Nr,Nt)+1j*randn(Nr,Nt))/sqrt(2)*H_error_scaler*10;
+        [U,S,V] = svd((squeeze(H_freq(:,:,kk))+H_error));
+        [diag_S, temp_idx] = sort(diag(S), 'descend');
+        S_sorted  = diag(diag_S);
+        U_sorted = U(:,temp_idx);
+        V_sorted = V(:,temp_idx); 
+        if tt==1
+            U_true{kk} = U_sorted(:,1:L);
+            V_true{kk} = V_sorted(:,1:L);
+        end
+
+        % true chan
+        H_k = squeeze(H_freq(:,:,kk));
+        gain_true = U_true{kk}' * H_k *V_true{kk};
+
+        if L==2
+            % Capcity computing with L = 2 multiplexed streams
+            SINR_k_true(1, kk) = abs(gain_true(1,1))^(2) / ((abs(gain_true(1,2)).^2) + noise_pow);
+            SINR_k_true(2, kk) = abs(gain_true(2,2))^(2) / ((abs(gain_true(2,1)).^2) + noise_pow);
+
+        elseif L==1
+            % Capcity computing with L = 2 multiplexed streams
+            SINR_k_true(1, kk) = abs(gain(1,1))^(2) / (noise_pow);
+
+        end
+    end
+    if L==2
+        capacity_true(tt) = mean(sum(log2(1+SINR_k_true))); % bps/Hz
+    elseif L==1
+        capacity_true(tt) = mean(log2(1+SINR_k_true)); % bps/Hz
+    end
 end
-raydelay_est_BB2 = raydelay_est;
-rayAOA_est_BB2 = rayAOA_est;
-raygain_est_BB2 = raygain_est;
+
 %% post-beamforming NMSE
 figure
 plot(1e3*t_range, MSE_tracking_BB1,'linewidth',3);hold on;
@@ -695,52 +671,43 @@ title('MSE in Tracking')
 ylabel('MSE')
 legend('BB1 w/ tracking','BB1 w/o tracking','BB2 w/ tracking','BB2 w/o tracking')
 
+%% angle and delay tracking performance
+figure
+subplot(221)
+plot(1e9*mean(raydelay_est_BB1,2));
+hold on
+plot(1e9*mean(raydelay_true_BB1,2));
+legend('est.','true')
+ylabel('delay (ns)')
+title('delay BB1')
 
-%% reconstruct MIMO channel
-L = cluster_num;
-SINR_k = zeros(L,Nfft);
-noise_pow = 1;
-for tt=1:length(t_range)
-    H_freq_est = get_H_freq2([raygain_est_BB1(tt,:);  raygain_est_BB2(tt,:)],...
-                             [raydelay_est_BB1(tt,:); raydelay_est_BB2(tt,:)],...
-                             [rayAOA_est_BB1(tt,:);   rayAOA_est_BB2(tt,:)],...
-                              rayAOD,...
-                              cluster_num,...
-                              ray_num,...
-                              Nt, Nr);
-                          
-    H_freq_true = get_H_freq2([raygain_true_BB1(tt,:);  raygain_true_BB2(tt,:)],...
-                             [raydelay_true_BB1(tt,:); raydelay_true_BB2(tt,:)],...
-                             [rayAOA_true_BB1(tt,:);   rayAOA_true_BB2(tt,:)],...
-                              rayAOD,...
-                              cluster_num,...
-                              ray_num,...
-                              Nt, Nr);
-    H_freq_true = H_freq_true / norm_factor;                     
-    
-    
-    for kk=1:Nfft
-        [U,S,V] = svd(H_freq_est(:,:,kk));
-        [diag_S, temp_idx] = sort(diag(S), 'descend');
-        S_sorted  = diag(diag_S);
-        U_sorted = U(:,temp_idx);
-        V_sorted = V(:,temp_idx); 
-        U_est{kk} = U_sorted(:,1:L);
-        V_est{kk} = V_sorted(:,1:L);
-        
-        % true chan
-        H_k = squeeze(H_freq_true(:,:,kk));
-        
-        gain = U_est{kk}' * H_k *V_est{kk};
-        
-        for ll=1:L
-            SINR_k(ll, kk) = abs(gain(ll,ll))^(2)...
-                        / (sum(abs(gain(ll,:)).^2) -abs(gain(ll,ll))^2 + noise_pow);
-        end
-        
-        capacity(tt) = mean(sum(log2(1+SINR_k))); % bpz/Hz
-    end
-end
+subplot(222)
+plot(1e9*mean(raydelay_est_BB2,2));
+hold on
+plot(1e9*mean(raydelay_true_BB2,2));
+legend('est.','true')
+ylabel('delay (ns)')
+title('delay BB2')
+
+subplot(223)
+plot(mean(rayAOA_est_BB1,2)/pi*180);
+hold on
+plot(mean(rayAOA_true_BB1,2)/pi*180);
+legend('est.','true')
+ylabel('AOA (deg)')
+title('AOA BB1')
+
+subplot(224)
+plot(mean(rayAOA_est_BB2,2)/pi*180);
+hold on
+plot(mean(rayAOA_true_BB2,2)/pi*180);
+legend('est.','true')
+ylabel('AOA (deg)')
+title('AOA BB2')
+
 %%  capacity plotting
-figure; plot(t_range, capacity)
+figure;
+plot(t_range, capacity_track);hold on
+plot(t_range, capacity_true);hold on
+legend('proposed','perfect CSI')
         
