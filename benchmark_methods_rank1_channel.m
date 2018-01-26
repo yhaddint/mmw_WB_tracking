@@ -7,7 +7,7 @@
 %-------------------------------------
 % Script control parameter
 %-------------------------------------
-clear;clc;%close all
+clear;clc;close all
 rng(2); %random seed
 plot_ellipse = 0; % plot geolocations of Tx/Rx/Scatterers
 print_stat = 0; % print channel parameter summary
