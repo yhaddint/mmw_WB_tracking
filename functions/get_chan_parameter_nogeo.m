@@ -1,15 +1,28 @@
-function [ raygain, raydelay, ray_AOA_azim, ray_AOD_azim ] = get_chan_parameter_nogeo( print_stat, cluster_num, ray_num, sigma_delay_spread, sigma_AOA_spread, sigma_AOD_spread )
+function [ raygain, raydelay, ray_AOA_azim, ray_AOD_azim ] =...
+    get_chan_parameter_nogeo( print_stat,...
+                              cluster_num,...
+                              ray_num,...
+                              sigma_delay_spread,...
+                              centroid_AOA,...
+                              sigma_AOA_spread,...
+                              centroid_AOD,...
+                              sigma_AOD_spread )
 %GET_CHAN_PARAMETER_NOGEO Summary of this function goes here
 %   Generate channel parameter using given statistics
 %   [ raygain, raydelay, ray_AOA_azim, ray_AOD_azim ] = ...
 %           get_chan_parameter_nogeo( print_stat, cluster_num, ray_num, sigma_delay_spread,...
-%                                      sigma_AOA_spread, sigma_AOD_spread )
+%                                      centroid_AOA, sigma_AOA_spread,...
+%                                      centroid_AOD, sigma_AOD_spread )
 %   IP: print_stat, indicator for printing channel statistics
 %   IP: cluster_num, number of MPC cluster
 %   IP: ray_num, number of rays in each clusters
-%   OP: sigma_delay_spread, desired intra-cluster delay spread (std with
+%   IP: sigma_delay_spread, desired intra-cluster delay spread (std with
 %       unit second)
+%   IP: centroid_AOA, desired centroid of AOA of clusters (with unit rad), can
+%       be 'random' if not to be fixed
 %   IP: sigma_AOA_spread, desired intra-cluster AOA spread (std var with unit rad)
+%   IP: centroid_AOD, desired centroid of AOD of clusters (with unit rad), can
+%       be 'random' if not to be fixed
 %   IP: sigma_AOD_spread, desired intra-cluster AOD spread (std var with unit rad)
 %   OP: raygain, cluster_num by ray_num matrix with raygain for each ray
 %   OP: raydelay, cluster_num by ray_num matrix with delay for each ray
@@ -37,7 +50,11 @@ rayAOD = zeros(ray_num, cluster_num);
 for cluster_index = 1:cluster_num
 
     % Randomly generate chan. parameters (AOD in Azimuth)
-    ray_AOD_azim_mean = rand * 2 * pi / 3 - pi/3;
+    if centroid_AOD == 'random'
+        ray_AOD_azim_mean = rand * 2 * pi / 3 - pi/3;
+    else
+        ray_AOD_azim_mean = centroid_AOD(cluster_index);
+    end
     angle_spread = laprnd(1, ray_num, 0, sigma_AOD_spread);
     ray_AOD_azim(cluster_index,:) = ray_AOD_azim_mean + angle_spread;
 
@@ -47,7 +64,11 @@ for cluster_index = 1:cluster_num
 %     ray_AOD_elev(cluster_index,:) = ray_AOD_elev_mean + angle_spread;
 
     % Randomly generate chan. parameters (AOA in Azimuth)
-    ray_AOA_azim_mean = rand * 2 * pi / 3 - pi/3;
+    if centroid_AOA == 'random'
+        ray_AOA_azim_mean = rand * 2 * pi / 3 - pi/3;
+    else
+        ray_AOA_azim_mean = centroid_AOA(cluster_index);
+    end
     angle_spread = laprnd(1, ray_num, 0, sigma_AOA_spread);
     ray_AOA_azim(cluster_index,:) = ray_AOA_azim_mean + angle_spread;
 
@@ -56,8 +77,6 @@ for cluster_index = 1:cluster_num
 %     angle_spread = laprnd(1, ray_num, 0, sigma_AOA_spread);
 %     ray_AOA_elev(cluster_index,:) = ray_AOA_elev_mean + angle_spread;
 
-%                 ray_gain(cluster_index,:) = exp(1j * rand * 2 * pi)...
-%                                             * ones(1,ray_num);
 
     % Unit gain for each ray
     raygain(cluster_index,:) = ones(1,ray_num);
