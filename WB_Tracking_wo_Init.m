@@ -15,7 +15,7 @@ speed_c = 3e8;
 fc = 28e9;
 %% Large Scale Parameter (Multiple Clusters)
 cluster_delay = [300e-9,250e-9];
-cluster_num = 2;
+cluster_num = 1;
 ray_num = 20;
 
 %% Cluster Generation (Strongest Two?)
@@ -33,7 +33,7 @@ for cluster_index = 1:cluster_num
         AOA = -pi/2;
     end
     loc_cluster_cnt = [a*cos(AOA),b*sin(AOA)];
-    loc_cluster = repmat(loc_cluster_cnt,ray_num,1)+[randn(ray_num,1)*2,randn(ray_num,1)*2];
+    loc_cluster = repmat(loc_cluster_cnt,ray_num,1)+[randn(ray_num,1)*0,randn(ray_num,1)*0];
     loc_cluster_total((cluster_index-1)*ray_num+1:cluster_index*ray_num,:) =  loc_cluster;
     
     for ray_index = 1:ray_num
@@ -80,7 +80,7 @@ end
 
 %% Frequency Domain MIMO Channel & Frequency Domain Equivalent Beamspace Channel
 Nfft = 512;
-H_freq0 = get_H_freq3( raygain,...
+H_freq0 = get_H_freq2( raygain,...
                        raydelay,...
                        rayAOA,...
                        rayAOD,...
@@ -90,6 +90,46 @@ H_freq0 = get_H_freq3( raygain,...
 norm_factor = sqrt(mean(mean(mean(abs(H_freq0).^2))));
 % norm_factor = 1;
 H_freq0 = H_freq0 / norm_factor ;
+
+%% ML estimation of angle
+%AOA = rand*pi-pi/2;
+angle_errors = zeros(1000, 1);
+for i = 1:1000 %1000 Monte Carlo simulations
+    y = 0; %received signal
+    true_rayAOA = zeros(1, cluster_num);
+    true_rayAOD = zeros(1, cluster_num);
+    for cluster_index = 1:cluster_num
+        delay = cluster_delay(cluster_index);
+        ellipse_len = delay*speed_c;
+        a = ellipse_len/2;
+        c = D_bs2ue/2;
+        b = sqrt(a^2-c^2);
+        if cluster_index==1
+            AOA = pi/2;
+        else
+            AOA = -pi/2;
+        end
+        loc_cluster_cnt = [a*cos(AOA),b*sin(AOA)];
+        temp = loc_cluster_cnt - loc0_ue;
+        true_rayAOA(1,cluster_index) = angle(temp(1)+1j*temp(2));
+        temp = loc_cluster_cnt - loc0_bs;
+        true_rayAOD(1,cluster_index) = angle(-temp(1)-1j*temp(2));
+        atx = exp(1j*(0:Nt-1)'*pi*sin(true_rayAOD(1,cluster_index)))/sqrt(Nt); %we assume transmitter is perfectly aligned
+        arx = exp(1j*(0:Nr-1)'*pi*sin(true_rayAOA(1,cluster_index)))/sqrt(Nr); %we assume transmitter is perfectly aligned
+        arx1 = exp(1j*(0:Nr-1)'*pi*sin(true_rayAOA(1,cluster_index))+2/180*pi)/sqrt(Nr);
+        arx2 = exp(1j*(0:Nr-1)'*pi*sin(true_rayAOA(1,cluster_index))-2/180*pi)/sqrt(Nr);
+        arx3 = exp(1j*(0:Nr-1)'*pi*sin(true_rayAOA(1,cluster_index))-3/180*pi)/sqrt(Nr);
+        arx4 = exp(1j*(0:Nr-1)'*pi*sin(true_rayAOA(1,cluster_index))+1/180*pi)/sqrt(Nr);
+        %if we have multiple clusters, must save information about true
+        %rayAOA, true rayAOD and steering vectors (e.g. make new vectors
+        %and save them into these vectors)
+        F = [atx atx atx atx]; %we assume that receiver makes 4 measurements (for example)
+        W = [arx1 arx2 arx3 arx4];
+        y = y + W'*H_freq0(:,:,1)*F*ones(4,1); %we take just one subcarrier
+    end
+    angle_errors(i,1) = ml_angle(y, true_rayAOA, true_rayAOD, F, W, cluster_num, Nt, Nr);
+end
+angle_error_var = var(angle_errors);
 
 %%
 phi1 = mean(rayAOA(1,:),2);
