@@ -93,43 +93,59 @@ H_freq0 = H_freq0 / norm_factor ;
 
 %% ML estimation of angle
 %AOA = rand*pi-pi/2;
-angle_errors = zeros(1000, 1);
-for i = 1:1000 %1000 Monte Carlo simulations
-    y = 0; %received signal
-    true_rayAOA = zeros(1, cluster_num);
-    true_rayAOD = zeros(1, cluster_num);
-    for cluster_index = 1:cluster_num
-        delay = cluster_delay(cluster_index);
-        ellipse_len = delay*speed_c;
-        a = ellipse_len/2;
-        c = D_bs2ue/2;
-        b = sqrt(a^2-c^2);
-        if cluster_index==1
-            AOA = pi/2;
-        else
-            AOA = -pi/2;
+noises = -35:5:10;
+errorSD_noisy = zeros(length(noises),1); %RMSE
+for noise_index = 1:length(noises);
+    angle_est = zeros(1000, 1);
+    for i = 1:1000 %1000 Monte Carlo simulations
+        y = 0; %received signal
+        true_rayAOA = zeros(1, cluster_num);
+        true_rayAOD = zeros(1, cluster_num);
+        for cluster_index = 1:cluster_num
+            delay = cluster_delay(cluster_index);
+            ellipse_len = delay*speed_c;
+            a = ellipse_len/2;
+            c = D_bs2ue/2;
+            b = sqrt(a^2-c^2);
+            if cluster_index==1
+                AOA = pi/2;
+            else
+                AOA = -pi/2;
+            end
+            loc_cluster_cnt = [a*cos(AOA),b*sin(AOA)];
+            temp = loc_cluster_cnt - loc0_ue;
+            true_rayAOA(1,cluster_index) = angle(temp(1)+1j*temp(2));
+            temp = loc_cluster_cnt - loc0_bs;
+            true_rayAOD(1,cluster_index) = angle(-temp(1)-1j*temp(2));
+            atx = exp(1j*(0:Nt-1)'*pi*sin(true_rayAOD(1,cluster_index)))/sqrt(Nt); %we assume transmitter is perfectly aligned
+            arx = exp(1j*(0:Nr-1)'*pi*sin(true_rayAOA(1,cluster_index)))/sqrt(Nr); %we assume transmitter is perfectly aligned
+            arx1 = exp(1j*(0:Nr-1)'*pi*sin(true_rayAOA(1,cluster_index))+2/180*pi)/sqrt(Nr);
+            arx2 = exp(1j*(0:Nr-1)'*pi*sin(true_rayAOA(1,cluster_index))-2/180*pi)/sqrt(Nr);
+            arx3 = exp(1j*(0:Nr-1)'*pi*sin(true_rayAOA(1,cluster_index))-3/180*pi)/sqrt(Nr);
+            arx4 = exp(1j*(0:Nr-1)'*pi*sin(true_rayAOA(1,cluster_index))+1/180*pi)/sqrt(Nr);
+            %if we have multiple clusters, must save information about true
+            %rayAOA, true rayAOD and steering vectors (e.g. make new vectors
+            %and save them into these vectors)
+            F = [atx atx atx atx]; %we assume that receiver makes 4 measurements (for example)
+            W = [arx1 arx2 arx3 arx4];
+            y = y + W'*H_freq0(:,:,1)*F*ones(4,1); %we take just one subcarrier
+            signal_power = norm(y)^2;
+            noise_power = signal_power / 10^(noises(noise_index)/10);
+            noise_vec = (randn(4,1)*sqrt(noise_power/8) + 1i*randn(4,1)*sqrt(noise_power/8));
+            y = y + noise_vec;
         end
-        loc_cluster_cnt = [a*cos(AOA),b*sin(AOA)];
-        temp = loc_cluster_cnt - loc0_ue;
-        true_rayAOA(1,cluster_index) = angle(temp(1)+1j*temp(2));
-        temp = loc_cluster_cnt - loc0_bs;
-        true_rayAOD(1,cluster_index) = angle(-temp(1)-1j*temp(2));
-        atx = exp(1j*(0:Nt-1)'*pi*sin(true_rayAOD(1,cluster_index)))/sqrt(Nt); %we assume transmitter is perfectly aligned
-        arx = exp(1j*(0:Nr-1)'*pi*sin(true_rayAOA(1,cluster_index)))/sqrt(Nr); %we assume transmitter is perfectly aligned
-        arx1 = exp(1j*(0:Nr-1)'*pi*sin(true_rayAOA(1,cluster_index))+2/180*pi)/sqrt(Nr);
-        arx2 = exp(1j*(0:Nr-1)'*pi*sin(true_rayAOA(1,cluster_index))-2/180*pi)/sqrt(Nr);
-        arx3 = exp(1j*(0:Nr-1)'*pi*sin(true_rayAOA(1,cluster_index))-3/180*pi)/sqrt(Nr);
-        arx4 = exp(1j*(0:Nr-1)'*pi*sin(true_rayAOA(1,cluster_index))+1/180*pi)/sqrt(Nr);
-        %if we have multiple clusters, must save information about true
-        %rayAOA, true rayAOD and steering vectors (e.g. make new vectors
-        %and save them into these vectors)
-        F = [atx atx atx atx]; %we assume that receiver makes 4 measurements (for example)
-        W = [arx1 arx2 arx3 arx4];
-        y = y + W'*H_freq0(:,:,1)*F*ones(4,1); %we take just one subcarrier
+        angle_est(i,1) = ml_angle(y, true_rayAOA, true_rayAOD, F, W, cluster_num, Nt, Nr);
     end
-    angle_errors(i,1) = ml_angle(y, true_rayAOA, true_rayAOD, F, W, cluster_num, Nt, Nr);
+    errorSD_noisy(noise_index,1) = sqrt(mean((angle_est - ones(1000,1)*(true_rayAOA(1,1)/pi*180)).^2));
+    %angle_error_var = var(angle_est);
 end
-angle_error_var = var(angle_errors);
+
+close all
+figure
+semilogy(noises, errorSD_noisy, 'o-r', 'Linewidth', 2)
+xlabel('SNR [dB]')
+ylabel('RMSE of AOA estimation')
+title('RMSE vs. SNR[dB]')
 
 %%
 phi1 = mean(rayAOA(1,:),2);
