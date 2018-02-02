@@ -1,6 +1,17 @@
 function [ H_freq ] = get_H_freq2( raygain, raydelay, rayAOA, rayAOD, cluster_num, ray_num, Nt, Nr )
 %GET_H_FREQ Summary of this function goes here
-%   Detailed explanation goes here
+%   This is the function used for most script
+%   Channel model is H = sum
+%   alpha*exp(-j*2*pi*n*tau_0/(Nfft*Ts))*ar(phi)*at(theta)
+%   H_freq = get_H_freq2( raygain, raydelay, rayAOA, rayAOD, cluster_num, ray_num, Nt, Nr )
+%   IP: raygain (cluster_num by ray_num) matrix with complex gain for each path
+%   IP: raydelay (cluster_num by ray_num) matrix with prop delay for each path
+%   IP: rayAOA (cluster_num by ray_num) matrix with AOA for each path
+%   IP: rayAOD (cluster_num by ray_num) matrix with AOD for each path
+%   IP: cluster_num is scaler for number of multipath cluster
+%   IP: ray_num is scaler for number of rays in each cluster
+%   IP: Nt is number of antenna (ULA) in transmitter
+%   IP: Nr is number of antenna (ULA) in receiver
 
     Nfft = 512;
     H_freq = zeros(Nr,Nt,Nfft);

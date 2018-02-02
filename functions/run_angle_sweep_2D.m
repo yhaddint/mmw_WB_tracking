@@ -23,4 +23,3 @@ function [ tx_max_index, tx_angle, rx_max_index, rx_angle ] = run_angle_sweep_2D
     tx_angle = angle_tx_range(tx_max_index)/pi*180;
     rx_angle = angle_rx_range(rx_max_index)/pi*180;
 end
-
