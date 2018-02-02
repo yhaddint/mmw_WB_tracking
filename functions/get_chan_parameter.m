@@ -13,9 +13,10 @@ loc0_bs = [D_bs2ue/2,0]; % Geometric parameter for channel
 cluster_delay = [300e-9,250e-9]; % Mean delay of two multipath clusters
 
 
-raygain = zeros(ray_num, cluster_num);
-rayAOA = zeros(ray_num, cluster_num);
-rayAOD = zeros(ray_num, cluster_num);
+raygain = zeros(cluster_num, ray_num);
+raydelay = zeros(cluster_num, ray_num);
+rayAOA = zeros(cluster_num, ray_num);
+rayAOD = zeros(cluster_num, ray_num);
 
 for cluster_index = 1:cluster_num
     delay = cluster_delay(cluster_index);
