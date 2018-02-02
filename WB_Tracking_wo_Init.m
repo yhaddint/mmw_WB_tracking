@@ -2,7 +2,7 @@
 clear;clc;close all
 % rng(2)
 %% other parameter
-plot_ellipse = 1;
+plot_ellipse = 0;
 noise_pow = 1;
 
 %% Goemetry Parameters
@@ -33,7 +33,7 @@ for cluster_index = 1:cluster_num
         AOA = -pi/2;
     end
     loc_cluster_cnt = [a*cos(AOA),b*sin(AOA)];
-    loc_cluster = repmat(loc_cluster_cnt,ray_num,1)+[randn(ray_num,1)*0,randn(ray_num,1)*0];
+    loc_cluster = repmat(loc_cluster_cnt,ray_num,1)+[randn(ray_num,1)*5,randn(ray_num,1)*5];
     loc_cluster_total((cluster_index-1)*ray_num+1:cluster_index*ray_num,:) =  loc_cluster;
     
     for ray_index = 1:ray_num
@@ -93,7 +93,7 @@ H_freq0 = H_freq0 / norm_factor ;
 
 %% ML estimation of angle
 %AOA = rand*pi-pi/2;
-noises = -35:5:10;
+noises = -15:5:30;
 errorSD_noisy = zeros(length(noises),1); %RMSE
 for noise_index = 1:length(noises);
     angle_est = zeros(1000, 1);
@@ -127,7 +127,7 @@ for noise_index = 1:length(noises);
             %rayAOA, true rayAOD and steering vectors (e.g. make new vectors
             %and save them into these vectors)
             F = [atx atx atx atx]; %we assume that receiver makes 4 measurements (for example)
-            W = [arx1 arx2 arx3 arx4];
+            W = (randi(2,Nr,4)*2-3)+1j*(randi(2,Nr,4)*2-3);
             y = y + W'*H_freq0(:,:,1)*F*ones(4,1); %we take just one subcarrier
             signal_power = norm(y)^2;
             noise_power = signal_power / 10^(noises(noise_index)/10);
