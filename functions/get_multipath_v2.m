@@ -1,4 +1,4 @@
-function [raydelay, rayAOA, rayAOD ] = get_multipath_v2(loc_bs, loc_ue, loc_cluster_total,...
+function [raydelay, rayAOA, rayAOD] = get_multipath_v2(loc_bs, loc_ue, loc_cluster_total,...
                                          cluster_num, ray_num, print_stat )
 %GET_MULTIPATH Summary of this function goes here
 %   Detailed explanation goes here
@@ -16,6 +16,7 @@ function [raydelay, rayAOA, rayAOD ] = get_multipath_v2(loc_bs, loc_ue, loc_clus
             temp = loc_cluster(ray_index,:) - loc_bs;
             rayAOD(cluster_index,ray_index) = angle(-temp(1)-1j*temp(2));
        end
+       
         if print_stat
             fprintf('Cluster %d:\n',cluster_index);
             fprintf('DS Mean:    %4.2f ns\n', mean(raydelay(cluster_index,:)*1e9));

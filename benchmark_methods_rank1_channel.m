@@ -35,6 +35,7 @@ Nfft = 512; % Number of subcarriers
 %-------------------------------------
 % Generate channel parameters from geolocations of BS, UE, and scatterers
 %-------------------------------------
+
 [raydelay,...
  rayAOA,...
  rayAOD ] = get_multipath_v2(loc0_bs,...
@@ -132,6 +133,8 @@ end
 
 rx_opt_index = zeros(length(t_range)+1,1);
 rx_opt_index(1) = rx_max_index;
+rx_ml_angle = zeros(length(t_range)+1,1);
+rx_ml_angle(1) = rx_max_index;
 
 theta_opt = angle_tx_range(tx_max_index);
 atx_opt = exp(1j*(0:Nt-1)'*pi*sin(theta_opt))/sqrt(Nt);
