@@ -79,7 +79,7 @@ for cluster_index = 1:cluster_num
 
 
     % Unit gain for each ray
-    raygain(cluster_index,:) = ones(1,ray_num);
+    raygain(cluster_index,:) = ones(1,ray_num)*exp(1j*rand*2*pi);
     
     % Delay of each ray, Gaussian distributed
     raydelay(cluster_index,:) = cluster_delay(cluster_index) + randn(1,ray_num)*sigma_delay_spread;

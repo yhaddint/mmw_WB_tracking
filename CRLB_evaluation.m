@@ -7,11 +7,11 @@ rng(2); %random seed
 %-------------------------------------
 % System Parameters
 %-------------------------------------
-ray_num = 2; % Num of rays in a cluster
+ray_num = 4; % Num of rays in a cluster
 Nr = 32; % Number of antenna in Rx
-M = 2; % Length of training
-MCtimes = 50; % Num of Monte Carlo Sim.
-AOAspread2 = (10/180*pi)^2;
+M = 4; % Length of training
+MCtimes = 100; % Num of Monte Carlo Sim.
+AOAspread2 = (5/180*pi)^2;
 AOAspread = sqrt(AOAspread2);
 
 % For loop for Monte Carlo Simulations
@@ -20,7 +20,7 @@ for MCindex = 1:MCtimes
     % Receiver beamformer: 1) quasi-omni beam from random steering mtx; 2)
     % directional beam from angle steering vector
     probe_BF = (randi(2,Nr,M)*2-3) + 1j * (randi(2,Nr,M)*2-3);
-    W = probe_BF./norm(probe_BF,'fro');
+    W = probe_BF./norm(probe_BF,'fro')*sqrt(Nr);
 %     W = probe_BF(:,1:4)./norm(probe_BF(:,1:4),'fro');
     
     % Evaluate CRLB when the second ray is phi apart
@@ -29,7 +29,7 @@ for MCindex = 1:MCtimes
     
     % Evaluate CRLB when the second ray is phi apart
     SNR_num = 100;
-    SNR_range = linspace(-20,20,SNR_num);
+    SNR_range = linspace(-15,15,SNR_num);
     
     % For loop for SNR
     for ss = 1:SNR_num
@@ -39,17 +39,17 @@ for MCindex = 1:MCtimes
         
         % AoA of rays with disired seperation
         phi = zeros(ray_num,1);
-        phi0 = 30/180*pi;
-        phi(1) = phi0 + AOAspread;
+        phi0 = 0/180*pi;
+        phi = phi0 + laprnd(ray_num,1,0,AOAspread);
 %         randompm = randi(2,ray_num-1,1)*2-3;
-        phi(2) = phi0 - AOAspread;
+%         phi = phi0 - AOAspread;
         
         % Pre-compute some vectors/matrices in FIM
         for rayindex = 1:ray_num
             
             % Complex gain
 %             g_cmplx(rayindex) = (randn + 1j*randn)/sqrt(ray_num);
-            g_cmplx = exp(1j*rand*2*pi);
+            g_cmplx = exp(1j*rand*2*pi)/ray_num;
 
             % Spatial response and its derivative over phi
             arx(:,rayindex) = exp(1j * pi * (0:Nr-1)' * sin(phi(rayindex)));
@@ -134,10 +134,10 @@ for MCindex = 1:MCtimes
         end
 
         % Evaluate J matrix for apriori distribution of dphi
-        J_p = [zeros(3,3), zeros(ray_num,3).';zeros(ray_num,3),diag(ones(ray_num,1)*1/AOAspread2)];
+        J_p = [zeros(3,3), zeros(ray_num,3).';zeros(ray_num,3),diag(ones(ray_num,1)*sqrt(2)/AOAspread)];
         
         % Evaluate FIM
-        J = 1/sigman2*[J_00, J_0d; J_d0, J_dd] + J_p;
+        J = 2/sigman2*[J_00, J_0d; J_d0, J_dd] + J_p;
         
         % RMSE evaluation from CRLB perspective
         % CRLB of first ray when there are multiple rays
