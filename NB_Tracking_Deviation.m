@@ -10,19 +10,18 @@ print_stat = 1;
 % System Parameters
 %-------------------------------------
 Nt = 32; % Number of Tx antennas (ULA)
-Nr = 32; % Number of Tx antennas (ULA)
+Nr = 16; % Number of Tx antennas (ULA)
 fc = 28e9; % Carrier frequency
 cluster_num = 1; % Number of multipath clusters
 ray_num = 4; % Number of intra-cluster rays
 sigma_delay_spread = 0;
-centroid_AOA = 30/180*pi;
-sigma_AOA_spread = 2.5/180*pi;
+centroid_AOA = 0/180*pi;
+sigma_AOA_spread = 10/180*pi;
 centroid_AOD = 0;
 sigma_AOD_spread = 0;
 Nfft = 512; % Number of subcarriers
 M = 4;
 MCtimes = 100;
-
 
 %% ML estimation of angle
 
@@ -56,7 +55,7 @@ for MCindex = 1:MCtimes %1000 Monte Carlo simulations
     norm_factor = norm(H0,'fro');
     H_normal = H0/norm_factor*sqrt(Nt*Nr);
 
-
+    
     sig = 0; %received signal
     true_rayAOA = zeros(1, cluster_num);
     true_rayAOD = zeros(1, cluster_num);
@@ -70,13 +69,13 @@ for MCindex = 1:MCtimes %1000 Monte Carlo simulations
     for cluster_index = 1:cluster_num
         true_rayAOA(1,cluster_index) = centroid_AOA;
         true_rayAOD(1,cluster_index) = centroid_AOD;
-        Probe_predocer = exp(1j*(0:Nt-1)'*pi*sin(true_rayAOD(1,cluster_index)))/sqrt(Nt); %we assume transmitter is perfectly aligned
+        Probe_predocer = exp(1j*(0:Nt-1)'*pi*sin(true_rayAOD(1,cluster_index))); %we assume transmitter is perfectly aligned
 
         %if we have multiple clusters, must save information about true
         %rayAOA, true rayAOD and steering vectors (e.g. make new vectors
         %and save them into these vectors)
         F = repmat(Probe_predocer, 1, M); %we assume that receiver makes 4 measurements (for example)
-        sig = sig + W'*H_normal*F*ones(4,1); %we take just one subcarrier
+        sig = sig + diag(W'*H_normal*F); %we take just one subcarrier
     end
         
     % For loop for different SNR
@@ -87,6 +86,16 @@ for MCindex = 1:MCtimes %1000 Monte Carlo simulations
         awgn = diag(W'*noise_vec*sqrt(noise_power/2));
         chan_noisy_ob = sig + awgn;
         angle_est_rad(noise_index) = ml_angle(chan_noisy_ob, true_rayAOA, true_rayAOD, F, W, cluster_num, Nt, Nr);
+        
+        % Evaluate SNR gain
+        [U,Sigma,V] = svd(H_normal);
+        data_combiner = exp(1j*pi*(0:Nr-1).'*sin(angle_est_rad(noise_index)));
+        data_combiner_theo = exp(1j*pi*(0:Nr-1).'*sin(centroid_AOA(1,1)+randn*(5/180*pi)));
+        data_combiner_opt = U(:,1)./abs(U(:,1));
+        data_precoder = exp(1j*pi*(0:Nt-1).'*sin(true_rayAOD(1,1)));
+        gain_ML(noise_index,MCindex) = abs(data_combiner'*H_normal*data_precoder)^2;
+        gain_theo(noise_index,MCindex) = abs(data_combiner_theo'*H_normal*data_precoder)^2;
+        gain_opt(noise_index,MCindex) = abs(data_combiner_opt'*H_normal*data_precoder)^2;
     end
     errorSD_noisy(:,MCindex) = (angle_est_rad - true_rayAOA(1,1)).^2;
     %angle_error_var = var(angle_est);
@@ -94,9 +103,20 @@ end
 %% Figure plotting
 MSE_noisy = sqrt(mean(errorSD_noisy,2))/pi*180;
 figure
-semilogy(noise_pow_range+15.05, MSE_noisy, 'Linewidth', 2);
+semilogy(noise_pow_range+15, MSE_noisy, 'Linewidth', 2);
 xlabel('SNR (dB)')
 ylabel('RMSE of AOA (deg)')
 title('RMSE vs. SNR[dB]')
 grid on
 
+%%
+gain_opt_mean = mean(gain_opt,2);
+gain_mean = mean(gain_ML,2);
+gain_theo_mean = mean(gain_theo,2);
+figure
+plot(noise_pow_range+15,10*log10(gain_opt_mean));hold on
+plot(noise_pow_range+15,10*log10(gain_mean));hold on
+plot(noise_pow_range+15,10*log10(gain_theo_mean));hold on
+
+grid on
+legend('true centroid','ML','from CRLB')

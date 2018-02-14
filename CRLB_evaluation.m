@@ -8,9 +8,9 @@ rng(2); %random seed
 % System Parameters
 %-------------------------------------
 ray_num = 4; % Num of rays in a cluster
-Nr = 32; % Number of antenna in Rx
-M = 4; % Length of training
-MCtimes = 100; % Num of Monte Carlo Sim.
+Nr = 16; % Number of antenna in Rx
+M = 64; % Length of training
+MCtimes = 200; % Num of Monte Carlo Sim.
 AOAspread2 = (5/180*pi)^2;
 AOAspread = sqrt(AOAspread2);
 
@@ -20,7 +20,7 @@ for MCindex = 1:MCtimes
     % Receiver beamformer: 1) quasi-omni beam from random steering mtx; 2)
     % directional beam from angle steering vector
     probe_BF = (randi(2,Nr,M)*2-3) + 1j * (randi(2,Nr,M)*2-3);
-    W = probe_BF./norm(probe_BF,'fro')*sqrt(Nr);
+    W = probe_BF./norm(probe_BF,'fro')*sqrt(Nr*M);
 %     W = probe_BF(:,1:4)./norm(probe_BF(:,1:4),'fro');
     
     % Evaluate CRLB when the second ray is phi apart
@@ -29,7 +29,7 @@ for MCindex = 1:MCtimes
     
     % Evaluate CRLB when the second ray is phi apart
     SNR_num = 100;
-    SNR_range = linspace(-15,15,SNR_num);
+    SNR_range = linspace(-15,30,SNR_num);
     
     % For loop for SNR
     for ss = 1:SNR_num
@@ -50,6 +50,7 @@ for MCindex = 1:MCtimes
             % Complex gain
 %             g_cmplx(rayindex) = (randn + 1j*randn)/sqrt(ray_num);
             g_cmplx = exp(1j*rand*2*pi)/ray_num;
+%             g_cmplx = 1/ray_num;
 
             % Spatial response and its derivative over phi
             arx(:,rayindex) = exp(1j * pi * (0:Nr-1)' * sin(phi(rayindex)));
@@ -132,7 +133,7 @@ for MCindex = 1:MCtimes
                 J_dd(r1,r2) = real(vec1'*vec2);
             end
         end
-
+        
         % Evaluate J matrix for apriori distribution of dphi
         J_p = [zeros(3,3), zeros(ray_num,3).';zeros(ray_num,3),diag(ones(ray_num,1)*sqrt(2)/AOAspread)];
         
@@ -143,13 +144,15 @@ for MCindex = 1:MCtimes
         % CRLB of first ray when there are multiple rays
         temp = inv(J);
         CRLB_multiple(ss,MCindex) = sqrt(temp(1,1))*(1/pi*180);
+        CRLB_rest1(ss,MCindex) = sqrt(temp(4,4))*(1/pi*180);
+        CRLB_rest2(ss,MCindex) = sqrt(temp(5,5))*(1/pi*180);
+        
         
         % Evaluation of FIM with single rays
         temp = inv(J(1:3,1:3));
         % RMSE evaluation from CRLB perspective
         CRLB_single(ss,MCindex) = sqrt(temp(1,1))*(1/pi*180);
 %         CRLB_single(pp,MCindex) = sqrt(1/(J(1,1) - J(1,2:3)*inv(J(2:3,2:3))*J(2:3,1)))*(1/pi*180);
-
 
     end
 end
@@ -160,3 +163,8 @@ semilogy(SNR_range,mean(CRLB_multiple,2));hold on
 grid on
 legend('Single Ray','Multple Rays')
 
+figure
+semilogy(SNR_range,mean(CRLB_rest1,2));hold on
+semilogy(SNR_range,mean(CRLB_rest1,2));hold on
+grid on
+legend('CRLB Ray 1','CRLB Ray 2')
