@@ -18,7 +18,7 @@ AODspread = AOAspread;
 SNR_num = 50;
 SNR_range = linspace(-15,30,SNR_num);
 
-% For loop for Monte Carlo Simulations
+% For loop for Monte Carlo Simulations (realization of g, angle spread, and beamformer)
 for MCindex = 1:MCtimes
     
     clc
@@ -165,8 +165,8 @@ for MCindex = 1:MCtimes
         for r2 = 1:ray_num
             phir2_index = (r2-1)*2+1;
             thetar2_index = r2*2;
-            vadr2 = W'*arx(:,r1).* conj(F'*dtx(:,r1));
-            vdar2 = W'*drx(:,r1).* conj(F'*atx(:,r1));
+            vadr2 = W'*arx(:,r2).* conj(F'*dtx(:,r2));
+            vdar2 = W'*drx(:,r2).* conj(F'*atx(:,r2));
 
             % partial phi_r1 and phi_r2
             J_DD(phir1_index,phir2_index) = real((g*vdar1)'* (g*vdar2));
@@ -188,7 +188,6 @@ for MCindex = 1:MCtimes
     J_p = zeros(4+ray_num*2);
     % A-priori of angular spread
     J_p(5:end,5:end) = diag(ones(2*ray_num,1)*sqrt(2)/AOAspread);
-        
     
     % For loop for SNR
     for ss = 1:SNR_num
@@ -203,8 +202,6 @@ for MCindex = 1:MCtimes
         % CRLB of first ray when there are multiple rays
         temp = inv(J);
         CRLB_multiple(ss,MCindex) = sqrt(temp(1,1))*(1/pi*180);
-%         CRLB_rest1(ss,MCindex) = sqrt(temp(5,5))*(1/pi*180);
-%         CRLB_rest2(ss,MCindex) = sqrt(temp(6,6))*(1/pi*180);
         
         % Evaluation of FIM with single rays
         temp = inv(J(1:4,1:4));
