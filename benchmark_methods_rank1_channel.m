@@ -15,7 +15,7 @@ print_stat = 0; % print channel parameter summary
 %-------------------------------------
 % System Parameters
 %-------------------------------------
-Nt = 16; % Number of Tx antennas (ULA)
+Nt = 32; % Number of Tx antennas (ULA)
 Nr = 16; % Number of Tx antennas (ULA)
 fc = 28e9; % Carrier frequency
 cluster_num = 1; % Number of multipath clusters

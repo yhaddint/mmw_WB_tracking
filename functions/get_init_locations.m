@@ -22,7 +22,7 @@ function [ loc0_ue, loc0_bs, loc_cluster_total ] = get_init_locations( plot_elli
             AOA = -pi/2;
         end
         loc_cluster_cnt = [a*cos(AOA),b*sin(AOA)];
-        loc_cluster = repmat(loc_cluster_cnt,ray_num,1)+[randn(ray_num,1)*2,randn(ray_num,1)*2];
+        loc_cluster = repmat(loc_cluster_cnt,ray_num,1)+[randn(ray_num,1)*0,randn(ray_num,1)*0];
         loc_cluster_total((cluster_index-1)*ray_num+1:cluster_index*ray_num,:) =  loc_cluster;
 
 
