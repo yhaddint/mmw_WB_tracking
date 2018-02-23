@@ -11,7 +11,7 @@ function [raydelay, rayAOA, rayAOD ] = get_multipath_v2(loc_bs, loc_ue, loc_clus
            loc_cluster = loc_cluster_total((cluster_index-1)*ray_num+1:cluster_index*ray_num,:);
             raydelay(cluster_index,ray_index) = (norm(loc_cluster(ray_index,:)-loc_bs)...
                         +norm(loc_cluster(ray_index,:)-loc_ue))/speed_c;
-            temp = loc_cluster(ray_index,:) - loc_ue;
+           temp = loc_cluster(ray_index,:) - loc_ue;
             rayAOA(cluster_index,ray_index) = angle(temp(1)+1j*temp(2));
             temp = loc_cluster(ray_index,:) - loc_bs;
             rayAOD(cluster_index,ray_index) = angle(-temp(1)-1j*temp(2));
