@@ -7,7 +7,7 @@ rng(2); %random seed
 %-------------------------------------
 % System Parameters
 %-------------------------------------
-ray_num = 3; % Num of rays in a cluster
+ray_num = 20; % Num of rays in a cluster
 Nr = 16; % Number of antenna in Rx
 Nt = 32;
 M = 16; % Length of training
