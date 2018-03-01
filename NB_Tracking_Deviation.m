@@ -13,14 +13,13 @@ Nt = 32; % Number of Tx antennas (ULA)
 Nr = 16; % Number of Tx antennas (ULA)
 fc = 28e9; % Carrier frequency
 cluster_num = 1; % Number of multipath clusters
-ray_num = 4; % Number of intra-cluster rays
+ray_num = 10; % Number of intra-cluster rays
 sigma_delay_spread = 0;
 centroid_AOA = 0/180*pi;
-sigma_AOA_spread = 10/180*pi;
+sigma_AOA_spread = 5/180*pi;
 centroid_AOD = 0;
 sigma_AOD_spread = 0;
-Nfft = 512; % Number of subcarriers
-M = 4;
+M = 16;
 MCtimes = 100;
 
 %% ML estimation of angle
@@ -44,14 +43,13 @@ for MCindex = 1:MCtimes %1000 Monte Carlo simulations
                                   sigma_AOD_spread );
     
     % Frequency Domain MIMO Channel & Frequency Domain Equivalent Beamspace Channel
-    H_freq0 = get_H_freq2( raygain,...
-                           raydelay,...
-                           ray_AOA_azim,...
-                           ray_AOD_azim,...
-                           cluster_num,...
-                           ray_num,...
-                           Nt, Nr);
-    H0 = squeeze(H_freq0(:,:,1));
+    H_NB = get_H_NB( raygain,...
+                     ray_AOA_azim,...
+                     ray_AOD_azim,...
+                     cluster_num,...
+                     ray_num,...
+                     Nt, Nr);
+    H0 = H_NB;
     norm_factor = norm(H0,'fro');
     H_normal = H0/norm_factor*sqrt(Nt*Nr);
 
