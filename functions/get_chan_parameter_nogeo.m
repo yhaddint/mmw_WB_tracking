@@ -55,7 +55,8 @@ for cluster_index = 1:cluster_num
     else
         ray_AOD_azim_mean = centroid_AOD(cluster_index);
     end
-    angle_spread = laprnd(1, ray_num, 0, sigma_AOD_spread);
+%     angle_spread = laprnd(1, ray_num, 0, sigma_AOD_spread);
+    angle_spread = randn(1, ray_num) * sigma_AOD_spread;
     ray_AOD_azim(cluster_index,:) = ray_AOD_azim_mean + angle_spread;
 
 %     % Randomly generate chan. parameters (AOD in Elevation)
@@ -69,7 +70,9 @@ for cluster_index = 1:cluster_num
     else
         ray_AOA_azim_mean = centroid_AOA(cluster_index);
     end
-    angle_spread = laprnd(1, ray_num, 0, sigma_AOA_spread);
+%     angle_spread = laprnd(1, ray_num, 0, sigma_AOA_spread);
+    angle_spread = randn(1, ray_num) * sigma_AOA_spread;
+
     ray_AOA_azim(cluster_index,:) = ray_AOA_azim_mean + angle_spread;
 
 %     % Randomly generate chan. parameters (AOA in Elevation)
@@ -79,7 +82,7 @@ for cluster_index = 1:cluster_num
 
 
     % Unit gain for each ray
-    raygain(cluster_index,:) = ones(1,ray_num)*exp(1j*rand*2*pi);
+    raygain(cluster_index,:) = exp(1j*rand(1,ray_num)*2*pi)/sqrt(ray_num);
     
     % Delay of each ray, Gaussian distributed
     raydelay(cluster_index,:) = cluster_delay(cluster_index) + randn(1,ray_num)*sigma_delay_spread;
