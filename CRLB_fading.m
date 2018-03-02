@@ -8,13 +8,14 @@ rng(3); %random seed
 % System Parameters
 %-------------------------------------
 ray_num = 10; % Num of rays in a cluster
-Nr = 16; % Number of antenna in Rx
+Nr = 8; % Number of antenna in Rx
 Nt = 32;
 M = 16; % Length of training
-MCtimes = 100; % Num of Monte Carlo Sim.
-AOAspread2 = (5/180*pi)^2;
+MCtimes = 200; % Num of Monte Carlo Sim.
+AOAspread2 = (0/180*pi)^2;
 AOAspread = sqrt(AOAspread2);
-AODspread = AOAspread;
+AODspread2 = (0/180*pi)^2;
+AODspread = sqrt(AODspread2);
 SNR_num = 50;
 SNR_range = linspace(-15,30,SNR_num);
 
@@ -27,10 +28,13 @@ for MCindex = 1:MCtimes
     % Receiver beamformer: 1) quasi-omni beam from random steering mtx; 2)
     % directional beam from angle steering vector
     probe_Rx_BF = (randi(2,Nr,M)*2-3) + 1j * (randi(2,Nr,M)*2-3);
-    W = probe_Rx_BF./norm(probe_Rx_BF,'fro')*sqrt(Nr*M);
+    W = probe_Rx_BF./norm(probe_Rx_BF,'fro')*sqrt(M);
     
     probe_Tx_BF = (randi(2,Nt,M)*2-3) + 1j * (randi(2,Nt,M)*2-3);
-    F = probe_Tx_BF./norm(probe_Tx_BF,'fro')*sqrt(Nt*M);   
+    F = probe_Tx_BF./norm(probe_Tx_BF,'fro')*sqrt(Nt*M);
+    
+%     probe_Tx_BF = ones(Nt,M);
+%     F = probe_Tx_BF./norm(probe_Tx_BF,'fro')*sqrt(Nt*M);   
 
     % AoA of rays with disired seperation
     phi = zeros(ray_num,1);
@@ -218,11 +222,12 @@ for MCindex = 1:MCtimes
         
         % RMSE evaluation from CRLB perspective
         % CRLB of first ray when there are multiple rays
-        temp = inv(J);
-        CRLB_multiple(ss,MCindex) = sqrt(temp(1,1))*(1/pi*180);
+%         temp = inv(J);
+%         CRLB_multiple(ss,MCindex) = sqrt(temp(1,1))*(1/pi*180);
         
         % Evaluation of FIM with single rays
-        temp = inv(J(1:3,1:3));
+%         temp = inv(J(1:3,1:3));
+        temp = inv([J(1,1),J(1,3);J(3,1),J(3,3)]);
         % RMSE evaluation from CRLB perspective
         CRLB_single(ss,MCindex) = sqrt(temp(1,1))*(1/pi*180);
 
