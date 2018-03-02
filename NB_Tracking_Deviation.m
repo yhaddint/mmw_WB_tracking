@@ -2,7 +2,7 @@
 % Script control parameter
 %-------------------------------------
 clear;clc;
-rng(2)
+rng(25)
 plot_ellipse = 0;
 print_stat = 1;
 
@@ -20,11 +20,11 @@ centroid_AOD = 0/180*pi;
 sigma_AOA_spread = 5/180*pi;
 sigma_AOD_spread = 0/180*pi;
 M = 64;
-MCtimes = 100;
+MCtimes = 50;
 
 %% ML estimation of angle
 
-noise_pow_range = -15:2.5:20;
+noise_pow_range = -15:2.5:30;
 errorSD_noisy = zeros(length(noise_pow_range),1); %RMSE
 
 for MCindex = 1:MCtimes %1000 Monte Carlo simulations
@@ -85,13 +85,16 @@ for MCindex = 1:MCtimes %1000 Monte Carlo simulations
     % For loop for different SNR
     noise_vec = randn(M,1) + 1j*randn(M,1);
     angle_est_rad = zeros(length(noise_pow_range), 1);
+    past_rayAOA = (rand*25-12.5)/180*pi;
+    
     for noise_index = 1:length(noise_pow_range)
         noise_power = 10^(-noise_pow_range(noise_index)/10);
         awgn = noise_vec * sqrt(noise_power/2);
         chan_noisy_ob = sig + awgn;
-        angle_est_rad(noise_index) = ml_angle(chan_noisy_ob, true_rayAOA, true_rayAOD, F, W, cluster_num, Nt, Nr);
+%         angle_est_rad(noise_index) = ml_angle(chan_noisy_ob, true_rayAOA, true_rayAOD, F, W, cluster_num, Nt, Nr);
         
-        angle_est_rad(noise_index) = ml_angle(chan_noisy_ob, true_rayAOA, true_rayAOD, F, W, cluster_num, Nt, Nr);
+        angle_est_rad(noise_index) = run_refinement(chan_noisy_ob, past_rayAOA, true_rayAOD, F, W, cluster_num, Nt, Nr);
+%         [ii] = descent_test(chan_noisy_ob, past_rayAOA, true_rayAOD, F, W, cluster_num, Nt, Nr);
 
 %         % Evaluate SNR gain
 %         [U,Sigma,V] = svd(H_normal);
