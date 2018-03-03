@@ -223,12 +223,29 @@ grid on
 % legend('Neighbor Angle Refinement','NB Tracking','Perfect CSI')
 % grid on
 %%  capacity plotting
+% SINR_trueCSI_mean = mean(reshape(SINR_trueCSI,20,25),1);
+% SINR_sector_mean = mean(reshape(SINR_sector,20,25),1);
+% SINR_NBtrack_mean = mean(reshape(SINR_NBtrack,20,25),1);
+
 figure;
-plot(t_range, SINR_trueCSI-SINR_sector,'linewidth',2);hold on
-plot(t_range, SINR_trueCSI-SINR_NBtrack,'linewidth',2);hold on
+plot(t_range, 10*log10(SINR_sector./SINR_trueCSI),'linewidth',2);hold on
+plot(t_range, 10*log10(SINR_NBtrack./SINR_trueCSI),'linewidth',2);hold on
+% plot(t_range, 10*log10(SINR_trueCSI),'linewidth',2);hold on
+
 legend('Neighbor Angle Refinement','NB Tracking')
 title('Gain')
 xlabel('Time [s]')
 ylabel('Gain Drop [dB]')
 grid on
-        
+%%
+% figure
+% [b,a] = ecdf(10*log10(SINR_sector));
+% plot(a,b,'linewidth',2);hold on
+% [b,a] = ecdf(10*log10(SINR_NBtrack));
+% plot(a,b,'linewidth',2);hold on
+% [b,a] = ecdf(10*log10(SINR_trueCSI));
+% plot(a,b,'linewidth',2);hold on
+% grid on
+% legend('Neighbor Angle Refinement','NB Tracking','True CSI')
+% 
+
