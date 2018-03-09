@@ -1,11 +1,15 @@
-function [ loc0_ue, loc0_bs, loc_cluster_total ] = get_init_locations( plot_ellipse, cluster_num, ray_num )
+function [ loc0_ue, loc0_bs, loc_cluster_total ] = get_init_locations( plot_ellipse, cluster_num, ray_num, scatter_radius )
 %GET_LOCOCATIONS Summary of this function goes here
 %   Detailed explanation goes here
+    if nargin==3
+        scatter_radius = 1.5;
+    end
+    
     speed_c = 3e8;
-    D_bs2ue = 40; % Geometric parameter for channel
+    D_bs2ue = 50; % Geometric parameter for channel
     loc0_ue = [-D_bs2ue/2,0]; % Geometric parameter for channel
     loc0_bs = [D_bs2ue/2,0]; % Geometric parameter for channel
-    cluster_delay = [300e-9,250e-9]; % Mean delay of two multipath clusters
+    cluster_delay = [200e-9,250e-9]; % Mean delay of two multipath clusters
 
     
     for cluster_index = 1:cluster_num
@@ -17,12 +21,12 @@ function [ loc0_ue, loc0_bs, loc_cluster_total ] = get_init_locations( plot_elli
 
     %     AOA = rand*pi-pi/2;
         if cluster_index == 1
-            AOA = pi/2;
+            AOA = 0.6*pi;
         else
             AOA = -pi/2;
         end
         loc_cluster_cnt = [a*cos(AOA),b*sin(AOA)];
-        loc_cluster = repmat(loc_cluster_cnt,ray_num,1)+[randn(ray_num,1)*0,randn(ray_num,1)*0];
+        loc_cluster = repmat(loc_cluster_cnt,ray_num,1)+[randn(ray_num,1)*scatter_radius,randn(ray_num,1)*scatter_radius];
         loc_cluster_total((cluster_index-1)*ray_num+1:cluster_index*ray_num,:) =  loc_cluster;
 
 

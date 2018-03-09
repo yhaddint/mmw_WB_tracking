@@ -2,7 +2,7 @@
 % Script control parameter
 %-------------------------------------
 clear;clc;
-rng(3)
+rng(25)
 plot_ellipse = 0;
 print_stat = 1;
 
@@ -12,14 +12,15 @@ print_stat = 1;
 Nt = 32; % Number of Tx antennas (ULA)
 Nr = 8; % Number of Tx antennas (ULA)
 cluster_num = 1; % Number of multipath clusters
-ray_num = 10; % Number of intra-cluster rays
+ray_num = 20; % Number of intra-cluster rays
 sigma_delay_spread = 0;
 centroid_AOA = 0/180*pi;
-sigma_AOA_spread = 0/180*pi;
-centroid_AOD = 0;
-sigma_AOD_spread = 0;
-M = 16;
-MCtimes = 200;
+centroid_AOD = 0/180*pi;
+
+sigma_AOA_spread = 5/180*pi;
+sigma_AOD_spread = 0/180*pi;
+M = 64;
+MCtimes = 50;
 
 %% ML estimation of angle
 
@@ -62,9 +63,9 @@ for MCindex = 1:MCtimes %1000 Monte Carlo simulations
         W(:,mm) = Probe_combiner(:,mm)./norm(Probe_combiner(:,mm))*sqrt(Nr);
     end
     
-%     Probe_precoder = (randi(2,Nt,M)*2-3)+1j*(randi(2,Nt,M)*2-3);
+    Probe_precoder = (randi(2,Nt,M)*2-3)+1j*(randi(2,Nt,M)*2-3);
     for mm = 1:M
-        Probe_precoder(:,mm) = exp(1j*(0:Nt-1)'*pi*sin(true_rayAOD(1,1))); 
+%         Probe_precoder(:,mm) = exp(1j*(0:Nt-1)'*pi*sin(true_rayAOD(1,1))); 
         F(:,mm) = Probe_precoder(:,mm)./norm(Probe_precoder(:,mm))*sqrt(Nt);
     end
         
@@ -84,12 +85,17 @@ for MCindex = 1:MCtimes %1000 Monte Carlo simulations
     % For loop for different SNR
     noise_vec = randn(M,1) + 1j*randn(M,1);
     angle_est_rad = zeros(length(noise_pow_range), 1);
+    past_rayAOA = (rand*25-12.5)/180*pi;
+    
     for noise_index = 1:length(noise_pow_range)
         noise_power = 10^(-noise_pow_range(noise_index)/10);
         awgn = noise_vec * sqrt(noise_power/2);
         chan_noisy_ob = sig + awgn;
-        angle_est_rad(noise_index) = ml_angle(chan_noisy_ob, true_rayAOA, true_rayAOD, F, W, cluster_num, Nt, Nr);
+%         angle_est_rad(noise_index) = ml_angle(chan_noisy_ob, true_rayAOA, true_rayAOD, F, W, cluster_num, Nt, Nr);
         
+        angle_est_rad(noise_index) = run_refinement(chan_noisy_ob, past_rayAOA, true_rayAOD, F, W, cluster_num, Nt, Nr);
+%         [ii] = descent_test(chan_noisy_ob, past_rayAOA, true_rayAOD, F, W, cluster_num, Nt, Nr);
+
 %         % Evaluate SNR gain
 %         [U,Sigma,V] = svd(H_normal);
 %         data_combiner = exp(1j*pi*(0:Nr-1).'*sin(angle_est_rad(noise_index)));

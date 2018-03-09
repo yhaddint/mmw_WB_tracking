@@ -7,14 +7,14 @@ rng(3); %random seed
 %-------------------------------------
 % System Parameters
 %-------------------------------------
-ray_num = 10; % Num of rays in a cluster
+ray_num = 15; % Num of rays in a cluster
 Nr = 8; % Number of antenna in Rx
 Nt = 32;
-M = 16; % Length of training
-MCtimes = 200; % Num of Monte Carlo Sim.
-AOAspread2 = (0/180*pi)^2;
+M = 64; % Length of training
+MCtimes = 20; % Num of Monte Carlo Sim.
+AOAspread2 = (5/180*pi)^2;
 AOAspread = sqrt(AOAspread2);
-AODspread2 = (0/180*pi)^2;
+AODspread2 = (5/180*pi)^2;
 AODspread = sqrt(AODspread2);
 SNR_num = 50;
 SNR_range = linspace(-15,30,SNR_num);
@@ -39,12 +39,12 @@ for MCindex = 1:MCtimes
     % AoA of rays with disired seperation
     phi = zeros(ray_num,1);
     phi0 = 0/180*pi;
-    phi = phi0 + laprnd(ray_num,1,0,AOAspread);
+    phi = phi0 + randn(ray_num,1) * AOAspread;
 
     % AoD of rays with disired seperation
     theta = zeros(ray_num,1);
     theta0 = 0/180*pi;
-    theta = theta0 + laprnd(ray_num,1,0,AODspread);
+    theta = theta0 + randn(ray_num,1) * AODspread;
 
 %     % Gain
 %     g_cmplx = exp(1j*rand(ray_num,1)*2*pi)/sqrt(ray_num);
@@ -205,10 +205,14 @@ for MCindex = 1:MCtimes
     J_p = zeros(3+ray_num*3);
     % A-priori of angular spread
     for r1 = 4:3:(ray_num*3+3)
-        J_p(r1,r1) = sqrt(2)/AOAspread;
+        J_p(r1,r1) = 2/AOAspread;
     end
     for r2 = 5:3:(ray_num*3+3)
-        J_p(r2,r2) = sqrt(2)/AOAspread;
+        if AODspread==0
+            J_p(r2,r2) = 0;
+        else
+            J_p(r2,r2) = 2/AODspread;
+        end
     end
     
     % For loop for SNR
@@ -222,8 +226,12 @@ for MCindex = 1:MCtimes
         
         % RMSE evaluation from CRLB perspective
         % CRLB of first ray when there are multiple rays
-%         temp = inv(J);
-%         CRLB_multiple(ss,MCindex) = sqrt(temp(1,1))*(1/pi*180);
+        dphiindex = 4:3:(ray_num*3+3);
+        dpsiindex = 6:3:(ray_num*3+3);
+        usefulindex = reshape([dphiindex;dpsiindex],1,ray_num*2);
+        temp = inv(J);
+%         temp = inv(J([1,3,usefulindex],[1,3,usefulindex]));
+        CRLB_multiple(ss,MCindex) = sqrt(temp(1,1))*(1/pi*180);
         
         % Evaluation of FIM with single rays
 %         temp = inv(J(1:3,1:3));
@@ -239,6 +247,8 @@ semilogy(SNR_range,mean(CRLB_single,2));hold on
 semilogy(SNR_range,mean(CRLB_multiple,2));hold on
 grid on
 legend('Single Ray','Multple Rays')
+xlabel('Point-to-Point SNR [dB]')
+ylabel('RMSE of AoA [deg]')
 
 % figure
 % semilogy(SNR_range,mean(CRLB_rest1,2));hold on

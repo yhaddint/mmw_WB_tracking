@@ -1,6 +1,6 @@
 function [ angle_est_rad ] = ml_angle(y, true_rayAOA, true_rayAOD, F, W, cluster_num, Nt, Nr)
-    low_limit = (true_rayAOA - 15*pi/180)/pi*180;
-    up_limit = (true_rayAOA + 15*pi/180)/pi*180;
+    low_limit = (true_rayAOA - 10*pi/180)/pi*180;
+    up_limit = (true_rayAOA + 10*pi/180)/pi*180;
     resolution = low_limit:0.02:up_limit;
     
     M = length(y);
