@@ -2,8 +2,10 @@ clear;clc;
 N = 5e3;
 xdata = linspace(-pi/2,pi/2,N);
 mu = 0;
-b = 5/180*pi;
+b = 0.1/180*pi;
 lappdf = 1/(2*b)*exp(-abs(xdata-mu)/b);
+% normalpdf = 1/sqrt(2*pi*b^2)*exp(-(xdata-mu).^2/(2*b^2));
+
 % figure
 % plot(xdata/pi*180,lappdf);
 % xlabel('Angle Spread [deg]')
@@ -40,7 +42,7 @@ steer_error_range = linspace(0,20,error_num)/180*pi;
 
 
 for ee = 1:error_num
-    Beam_BW = 20/180*pi;
+    Beam_BW = 5/180*pi;
     steer_error = steer_error_range(ee);
     for nn = 1:N
         inbeam = abs(xdata(nn)-steer_error)<=Beam_BW;
@@ -56,5 +58,5 @@ plot(steer_error_range/pi*180,20*log10(gain))
 grid on
 xlabel('Steering Error [deg]')
 ylabel('Gain (dB)')
-% xlim([1,16])
-% ylim([0,25])
+xlim([1,16])
+ylim([0,25])

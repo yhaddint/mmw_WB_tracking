@@ -11,17 +11,17 @@ clear;clc;
 rng(4); %random seed
 print_stat = 1; % print channel parameter summary
 plot_ellipse = 0;
-analyze_angular_profile = 0;
+analyze_angular_profile = 1;
 %-------------------------------------
 % System Parameters
 %-------------------------------------
 Nt = 32; % Number of Tx antennas (ULA)
-Nr = 32; % Number of Tx antennas (ULA)
+Nr = 16; % Number of Tx antennas (ULA)
 fc = 28e9;
 cluster_num = 1; % Number of multipath clusters
 ray_num = 20; % Number of intra-cluster rays
 noise_power = 1;
-scatter_radius = 1;
+scatter_radius = 0;
 % sigma_delay_spread = 0;
 centroid_AOA = 0/180*pi;
 centroid_AOD = 0/180*pi;
@@ -35,7 +35,7 @@ centroid_AOD = 0/180*pi;
   loc0_bs,...
   loc_cluster_total ] = get_init_locations( plot_ellipse,...
                                             cluster_num,...
-                                            ray_num);
+                                            ray_num,0);
                                            
 %-------------------------------------
 % Generate channel parameters from geolocations of BS, UE, and scatterers
@@ -90,7 +90,7 @@ angle_rx_range = linspace(-pi/3,pi/3,Nr);
 
 % surf(1:64,1:32,rx_RSS)
 %% codebook
-beam_width =9;
+beam_width = 3;
 angle_range = 80;
 pointing_range = -50:1:50;
 desired_pattern = zeros(angle_range*2+1,length(pointing_range));
@@ -98,7 +98,7 @@ for ii=1:length(pointing_range)
     left_boundary = pointing_range(ii) - (beam_width-1)/2;
     right_boundary = pointing_range(ii) + (beam_width-1)/2;
     index_desired = (left_boundary:right_boundary) + angle_range + 1;
-    desired_pattern(index_desired,ii) = ones(beam_width,1);
+    desired_pattern(index_desired,ii) = sqrt(Nr)*ones(beam_width,1);
 end
 for kk = 1:(angle_range*2+1)
     FF(:,kk) = exp(1j*pi*(0:Nr-1).'*sin((kk - angle_range -1 )/180*pi));
@@ -106,15 +106,15 @@ end
 
 for ii=1:101
      w_data_raw = pinv(FF')*desired_pattern(:,ii);
-     w_data(:,ii) = w_data_raw./norm(w_data_raw)*sqrt(Nr);
-
+     w_data(:,ii) = w_data_raw./norm(w_data_raw);
 end
 %%
-% angle_test = 40;
+% angle_test = 0;
 % figure
-% plot(-80:80,10*log10(abs(FF'*w_data(:,angle_test+51))));
+% plot(-80:80,20*log10(abs(FF'*w_data(:,angle_test+51))));
 % hold on;
-% plot(-80:80,10*log10(abs(FF'*exp(1j*pi*(0:Nr-1).'*sin(angle_test/180*pi)))));
+% naive_BF_vec = exp(1j*pi*(0:Nr-1).'*sin(angle_test/180*pi))/sqrt(Nr);
+% plot(-80:80,20*log10(abs(FF'*naive_BF_vec)));
 % legend('codebook','naive')
 % hold on
 % grid on
@@ -158,8 +158,9 @@ for tt = 1:length(t_range)
     else
         ray_AOA_azim(tt,:) = ray_AOA_azim(tt,:) + cluster_AOA(tt+1);
     end
-    raygain(tt,:) = exp(1j*(raydelay*fc*2*pi+rand(1,ray_num)*2*pi))/sqrt(ray_num); % Complex gain is randomly generated
-    
+%     raygain(tt,:) = exp(1j*(raydelay*fc*2*pi+rand(1,ray_num)*2*pi))/sqrt(ray_num); % Complex gain is randomly generated
+    raygain(tt,:) = 1/ray_num; % LOS gain has no fading 
+
 end
 %% Power Angular Profile
 
@@ -240,8 +241,8 @@ for tt = 1:length(t_range)
     
     %% Evaluation of capacity of NB Tracking
 %     arx_opt_NBtrack = exp(1j*(0:Nr-1)'*pi*sin(angle_est_rad(tt+1)));
-%     arx_opt_NBtrack = w_data(:,fix(angle_est_rad(tt+1)/pi*180)+51);
-    arx_opt_NBtrack = exp(1j*(0:Nr-1)'*pi*sin(mean(ray_AOA_azim(tt,:))));
+    arx_opt_NBtrack = w_data(:,fix(angle_est_rad(tt+1)/pi*180)+51);
+%     arx_opt_NBtrack = exp(1j*(0:Nr-1)'*pi*sin(mean(ray_AOA_azim(tt,:))));
     rx_gain_NBtrack(tt) = arx_opt_NBtrack' * H_NB_time_evo * atx_opt;
     SINR_NBtrack(tt) = abs(rx_gain_NBtrack(tt))^(2) / (noise_power);
     capacity_NBtrack(tt) = log2(1+SINR_NBtrack(tt)); % bps/Hz
@@ -326,18 +327,19 @@ grid on
 legend('Neighbor Angle Refinement','NB Tracking','True CSI')
 
 %%
-% power_AOA_dB = 10*log10(power_AOA);
-% AOA_range = linspace(-90,90,256);
-% [X, Y] = meshgrid(AOA_range,t_range);
-% figure
-% surf(X,Y,power_AOA_dB-80)
-% colorbar
-% colormap default
-% az = 0;
-% el = 90;
-% view(az, el);
-% % xlim([-90,30])
-% % caxis([-20 0])
+power_AOA_dB = 10*log10(power_AOA);
+AOA_range = linspace(-90,90,256);
+[X, Y] = meshgrid(t_range(1:20:end),AOA_range);
+figure
+surf(X,Y,power_AOA_dB(:,1:20:end)-max(max(power_AOA_dB(:,1:20:end))))
+colorbar
+colormap default
+az = 0;
+el = 90;
+view(az, el);
+% xlim([-90,30])
+ylim([-10,20])
+caxis([-20 0])
 % title('Angular Power Profile (dB)')
-% xlabel('Rx Array Steering Angle (deg)')
-% ylabel('Simulated Time (sec)')
+xlabel('Time [s]')
+ylabel('AoA [deg]')
