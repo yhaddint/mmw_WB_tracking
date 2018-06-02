@@ -2,9 +2,9 @@ clear;clc;
 N = 5e3;
 xdata = linspace(-pi/2,pi/2,N);
 mu = 0;
-b = 0.1/180*pi;
-lappdf = 1/(2*b)*exp(-abs(xdata-mu)/b);
-% normalpdf = 1/sqrt(2*pi*b^2)*exp(-(xdata-mu).^2/(2*b^2));
+b = 4/180*pi;
+% lappdf = 1/(2*b)*exp(-abs(xdata-mu)/b);
+normalpdf = 1/sqrt(2*pi*b^2)*exp(-(xdata-mu).^2/(2*b^2));
 
 % figure
 % plot(xdata/pi*180,lappdf);
@@ -45,12 +45,12 @@ for ee = 1:error_num
     Beam_BW = 5/180*pi;
     steer_error = steer_error_range(ee);
     for nn = 1:N
-        inbeam = abs(xdata(nn)-steer_error)<=Beam_BW;
+        inbeam = abs(xdata(nn)-steer_error)<=Beam_BW/2;
         beam_env(nn) = double(inbeam);
     end
     beam_pow = pi/Beam_BW;
     beam_pattern = beam_env * sqrt(beam_pow);
-    gain(ee) = sum(lappdf.*beam_pattern)*(xdata(2)-xdata(1));
+    gain(ee) = sum(normalpdf.*beam_pattern)*(xdata(2)-xdata(1));
 end
 
 figure
